@@ -10,6 +10,10 @@
 #include <stdlib.h>
 #include "Kvdb_Impl.h"
 #include "Options.h"
+#include <log/Log.h>
+#include <log/ConsoleAppender.h>
+#include <log/TxtFormatter.h>
+
 
 #define SEGMENT_SIZE 256 * 1024
 #define KEY_LEN 10
@@ -31,6 +35,7 @@ struct thread_arg{
 
 void usage()
 {
+	LOGI<< "Usage: Benchmark -f dbfile -s db_size -n num_records\n";
     fprintf(stderr, "Usage: Benchmark -f dbfile -s db_size -n num_records\n");
 }
 
@@ -256,12 +261,17 @@ int main(int argc, char** argv){
     int db_size; 
     int record_num;
 
+	
+	static kvdb::ConsoleAppender<kvdb::TxtFormatter> consoleAppender;
+	kvdb::init(kvdb::debug,&consoleAppender);
+
     if(Parse_Option(argc, argv, file_path, db_size, record_num) < 0)
     {
         usage();
         return -1;
     }
 
+	LOGI<< "Benchmark starting ...";
     Bench(file_path, db_size, record_num);
 
     return 0;
