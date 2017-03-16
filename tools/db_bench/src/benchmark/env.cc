@@ -1,3 +1,8 @@
+//  Copyright (c) 2017-present, Intel Corporation.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
 #include "env.h"
 
 namespace general_db_bench {
@@ -21,72 +26,70 @@ FileLock::~FileLock() {
 }
 
 void Log(Logger* info_log, const char* format, ...) {
-  if (info_log != NULL) {
-    va_list ap;
-    va_start(ap, format);
-    info_log->Logv(format, ap);
-    va_end(ap);
-  }
+    if (info_log != NULL) {
+        va_list ap;
+        va_start(ap, format);
+        info_log->Logv(format, ap);
+        va_end(ap);
+    }
 }
 
 static Status DoWriteStringToFile(Env* env, const Slice& data,
-                                  const std::string& fname,
-                                  bool should_sync) {
-  WritableFile* file;
-  Status s = env->NewWritableFile(fname, &file);
-  if (!s.ok()) {
+                                  const std::string& fname, bool should_sync) {
+    WritableFile* file;
+    Status s = env->NewWritableFile(fname, &file);
+    if (!s.ok()) {
+        return s;
+    }
+    s = file->Append(data);
+    if (s.ok() && should_sync) {
+        s = file->Sync();
+    }
+    if (s.ok()) {
+        s = file->Close();
+    }
+    delete file; // Will auto-close if we did not close above
+    if (!s.ok()) {
+        env->DeleteFile(fname);
+    }
     return s;
-  }
-  s = file->Append(data);
-  if (s.ok() && should_sync) {
-    s = file->Sync();
-  }
-  if (s.ok()) {
-    s = file->Close();
-  }
-  delete file;  // Will auto-close if we did not close above
-  if (!s.ok()) {
-    env->DeleteFile(fname);
-  }
-  return s;
 }
 
-Status WriteStringToFile(Env* env, const Slice& data,
-                         const std::string& fname) {
-  return DoWriteStringToFile(env, data, fname, false);
+Status WriteStringToFile(Env* env, const Slice& data, const std::string& fname) {
+    return DoWriteStringToFile(env, data, fname, false);
 }
 
 Status WriteStringToFileSync(Env* env, const Slice& data,
                              const std::string& fname) {
-  return DoWriteStringToFile(env, data, fname, true);
+    return DoWriteStringToFile(env, data, fname, true);
 }
 
 Status ReadFileToString(Env* env, const std::string& fname, std::string* data) {
-  data->clear();
-  SequentialFile* file;
-  Status s = env->NewSequentialFile(fname, &file);
-  if (!s.ok()) {
-    return s;
-  }
-  static const int kBufferSize = 8192;
-  char* space = new char[kBufferSize];
-  while (true) {
-    Slice fragment;
-    s = file->Read(kBufferSize, &fragment, space);
+    data->clear();
+    SequentialFile* file;
+    Status s = env->NewSequentialFile(fname, &file);
     if (!s.ok()) {
-      break;
+        return s;
     }
-    data->append(fragment.data(), fragment.size());
-    if (fragment.empty()) {
-      break;
+    static const int kBufferSize = 8192;
+    char* space = new char[kBufferSize];
+    while (true) {
+        Slice fragment;
+        s = file->Read(kBufferSize, &fragment, space);
+        if (!s.ok()) {
+            break;
+        }
+        data->append(fragment.data(), fragment.size());
+        if (fragment.empty()) {
+            break;
+        }
     }
-  }
-  delete[] space;
-  delete file;
-  return s;
+    delete[] space;
+    delete file;
+    return s;
 }
 
 EnvWrapper::~EnvWrapper() {
 }
 
-}  // namespace general_db_bench
+} // namespace general_db_bench

@@ -1,8 +1,9 @@
 #OPT ?= -g
 OPT ?= -g2
 
-INCLUDES = -I ./src/include
-TEST_INCLUDES = -I /usr/local/include/gtest /usr/local/lib/libgtest.a
+INCLUDES = -I ./src/include \
+				-I ./test/include
+GTEST_INCLUDES = -I ./test/include/gtest ./test/lib/libgtest.a
 
 LIBS = -pthread
 
@@ -30,12 +31,12 @@ UTILS = \
 SHARED_LIB = src/libkv.so
 
 TEST =  test/test_block_manager \
-	    test/test_gc \
 	    test/test_index_manager \
 	    test/test_operations \
 	    test/test_rmd \
 	    test/test_segment_manager \
-	    test/test_db
+	    test/test_db \
+	    test/test_status
 
 PROGNAME := ${UTILS} ${SHARED_LIB}
 
@@ -82,19 +83,19 @@ src/libkv.so: ${COMMON_OBJECTS}
 	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -shared -o $@ ${LIBS}
 
 test/test_rmd: test/test_rmd.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
-	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${TEST_INCLUDES}
+	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
 test/test_block_manager: test/test_block_manager.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
-	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${TEST_INCLUDES}
-test/test_gc: test/test_gc.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
-	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${TEST_INCLUDES}
+	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
 test/test_index_manager: test/test_index_manager.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
-	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${TEST_INCLUDES}
+	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
 test/test_operations: test/test_operations.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
-	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${TEST_INCLUDES}
+	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
 test/test_segment_manager: test/test_segment_manager.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
-	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${TEST_INCLUDES}
+	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
 test/test_db: test/test_db.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
-	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${TEST_INCLUDES}
+	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
+test/test_status: test/test_status.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
+	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
 .PHONY : clean
 clean:
 	rm -fr $(ALL_OBJECTS)

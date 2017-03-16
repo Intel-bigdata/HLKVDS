@@ -1,3 +1,8 @@
+//  Copyright (c) 2017-present, Intel Corporation.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
 /********************************************************************\
  *
  *      FILE:     rmd160.h
@@ -13,24 +18,23 @@
  *      Copyright (c) Katholieke Universiteit Leuven
  *      1996, All Rights Reserved
  *
-\********************************************************************/
+ \********************************************************************/
 
 #ifndef  RMD160H           /* make sure this file is read only once */
 #define  RMD160H
 
 #if defined(__cplusplus)
-extern "C"
-{
+extern "C" {
 #endif
 
 /********************************************************************/
 
 /* typedef 8, 16 and 32 bit types, resp.  */
 /* adapt these, if necessary, 
-   for your operating system and compiler */
-typedef    unsigned char        byte; /* unsigned 8-bit integer */
-typedef    unsigned short       word; /* unsigned 16-bit integer */
-typedef    unsigned int        dword; /* unsigned 32-bit integer */ 
+ for your operating system and compiler */
+typedef unsigned char byte; /* unsigned 8-bit integer */
+typedef unsigned short word; /* unsigned 16-bit integer */
+typedef unsigned int dword; /* unsigned 32-bit integer */
 
 /********************************************************************/
 
@@ -53,7 +57,7 @@ typedef    unsigned int        dword; /* unsigned 32-bit integer */
 #define H(x, y, z)        (((x) | ~(y)) ^ (z))
 #define I(x, y, z)        (((x) & (z)) | ((y) & ~(z))) 
 #define J(x, y, z)        ((x) ^ ((y) | ~(z)))
-  
+
 /* the eight basic operations FF() through III() */
 #define FF(a, b, c, d, e, x, s)        {\
       (a) += F1((b), (c), (d)) + (x);\
