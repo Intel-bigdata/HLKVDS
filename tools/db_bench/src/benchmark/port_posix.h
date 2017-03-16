@@ -1,21 +1,26 @@
+//  Copyright (c) 2017-present, Intel Corporation.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
 #ifndef DB_BENCH_PORT_POSIX_H
 #define DB_BENCH_PORT_POSIX_H
 
 #if defined(OS_MACOSX)
-  #include <machine/endian.h>
+#include <machine/endian.h>
 #elif defined(OS_SOLARIS)
-  #include <sys/isa_defs.h>
-  #ifdef _LITTLE_ENDIAN
-    #define LITTLE_ENDIAN
-  #else
-    #define BIG_ENDIAN
-  #endif
+#include <sys/isa_defs.h>
+#ifdef _LITTLE_ENDIAN
+#define LITTLE_ENDIAN
+#else
+#define BIG_ENDIAN
+#endif
 #elif defined(OS_FREEBSD) || defined(OS_OPENBSD) || defined(OS_NETBSD) ||\
       defined(OS_DRAGONFLYBSD)
-  #include <sys/types.h>
-  #include <sys/endian.h>
+#include <sys/types.h>
+#include <sys/endian.h>
 #else
-  #include <endian.h>
+#include <endian.h>
 #endif
 
 #include <pthread.h>
@@ -54,71 +59,72 @@ static const bool kLittleEndian = IS_LITTLE_ENDIAN;
 class CondVar;
 
 class Mutex {
- public:
-  Mutex();
-  ~Mutex();
+public:
+    Mutex();
+    ~Mutex();
 
-  void Lock();
-  void Unlock();
-  void AssertHeld() { }
+    void Lock();
+    void Unlock();
+    void AssertHeld() {
+    }
 
- private:
-  friend class CondVar;
-  pthread_mutex_t mu_;
+private:
+    friend class CondVar;
+    pthread_mutex_t mu_;
 
-  // No copying
-  Mutex(const Mutex&);
-  void operator=(const Mutex&);
+    // No copying
+    Mutex(const Mutex&);
+    void operator=(const Mutex&);
 };
 
 class CondVar {
- public:
-  explicit CondVar(Mutex* mu);
-  ~CondVar();
-  void Wait();
-  void Signal();
-  void SignalAll();
- private:
-  pthread_cond_t cv_;
-  Mutex* mu_;
+public:
+    explicit CondVar(Mutex* mu);
+    ~CondVar();
+    void Wait();
+    void Signal();
+    void SignalAll();
+private:
+    pthread_cond_t cv_;
+    Mutex* mu_;
 };
 /*we don't use snappy here*/
 #ifdef DB_BENCH_USE_SNAPPY
 inline bool Snappy_Compress(const char* input, size_t length,
-                            ::std::string* output) {
+        ::std::string* output) {
 #ifdef SNAPPY
-  output->resize(snappy::MaxCompressedLength(length));
-  size_t outlen;
-  snappy::RawCompress(input, length, &(*output)[0], &outlen);
-  output->resize(outlen);
-  return true;
+    output->resize(snappy::MaxCompressedLength(length));
+    size_t outlen;
+    snappy::RawCompress(input, length, &(*output)[0], &outlen);
+    output->resize(outlen);
+    return true;
 #endif
 
-  return false;
+    return false;
 }
 
 inline bool Snappy_GetUncompressedLength(const char* input, size_t length,
-                                         size_t* result) {
+        size_t* result) {
 #ifdef SNAPPY
-  return snappy::GetUncompressedLength(input, length, result);
+    return snappy::GetUncompressedLength(input, length, result);
 #else
-  return false;
+    return false;
 #endif
 }
 
 inline bool Snappy_Uncompress(const char* input, size_t length,
-                              char* output) {
+        char* output) {
 #ifdef SNAPPY
-  return snappy::RawUncompress(input, length, output);
+    return snappy::RawUncompress(input, length, output);
 #else
-  return false;
+    return false;
 #endif
 }
 #endif
 /*we don't use snappy here*/
 
-inline bool GetHeapProfile(void (*func)(void*, const char*, int), void* arg) {
-  return false;
+inline bool GetHeapProfile(void(*func)(void*, const char*, int), void* arg) {
+    return false;
 }
 
 } // namespace port

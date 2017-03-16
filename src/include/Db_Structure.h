@@ -1,4 +1,8 @@
-/* -*- Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+//  Copyright (c) 2017-present, Intel Corporation.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
 #ifndef _KV_DB_DB_STRUCTURE_H_
 #define _KV_DB_DB_STRUCTURE_H_
 
@@ -9,7 +13,6 @@ namespace kvdb {
 
 #define RMDsize 160
 #define KEYDIGEST_INT_NUM RMDsize/(sizeof(uint32_t)*8) // RIPEMD-160/(sizeof(uint32_t)*8) 160/32
-
 #define SEG_RESERVED_FOR_GC 2
 
 //default Options
@@ -35,7 +38,7 @@ namespace kvdb {
         fprintf(stderr,"\n");              \
 }while(0)
 #else
-    #define __DEBUG(x...)
+#define __DEBUG(x...)
 #endif
 
 #ifdef INFO
@@ -46,7 +49,7 @@ namespace kvdb {
         fprintf(stderr,"\n");              \
 }while(0)
 #else
-    #define __INFO(x...)
+#define __INFO(x...)
 #endif
 
 #ifdef WARN
@@ -57,7 +60,7 @@ namespace kvdb {
         fprintf(stderr,"\n");              \
 }while(0)
 #else
-    #define __WARN(x...)
+#define __WARN(x...)
 #endif
 
 #ifdef ERROR
@@ -68,7 +71,7 @@ namespace kvdb {
         fprintf(stderr,"\n");              \
 }while(0)
 #else
-    #define __ERROR(x...)
+#define __ERROR(x...)
 #endif
 
 #define FOK 0
@@ -81,7 +84,12 @@ typedef int16_t S16;
 typedef int32_t S32;
 typedef int64_t S64;
 
-    enum struct OpType {UNKOWN, INSERT, UPDATE, DELETE};
-}  // namespace kvdb
+enum struct OpType {
+    UNKOWN,
+    INSERT,
+    UPDATE,
+    DELETE
+};
+} // namespace kvdb
 
 #endif  // #define _KV_DB_DB_STRUCTURE_H_

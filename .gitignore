@@ -1,4 +1,5 @@
 *.o
 *.gch
 *.swp
+*.exe
 tags

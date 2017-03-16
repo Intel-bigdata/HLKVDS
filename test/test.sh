@@ -6,11 +6,12 @@ then
 	losetup /dev/loop2 test.img
 fi 
 
-echo "start test ..."
-#exit 0
-for i in `find -type f -executable -exec file -i '{}' \;| grep binary|awk -F":" '{print $1}'`
+#echo "start test ..."
+for i in `find -type f -executable -exec file -i '{}' \;| grep binary|grep -v sh|grep -v "\.o"|awk -F":" '{print $1}'`
 do  
-	echo $i
+	echo "================================"
+	echo "start test  "$i
 	./$i
+	echo "done. =========================="
 done 
 echo "done."

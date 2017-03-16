@@ -1,3 +1,8 @@
+//  Copyright (c) 2017-present, Intel Corporation.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
 #ifndef DB_BENCH_TESTUTIL_H
 #define DB_BENCH_TESTUTIL_H
 #include "env.h"
@@ -23,25 +28,26 @@ extern Slice CompressibleString(Random* rnd, double compressed_fraction,
 
 // A wrapper that allows injection of errors.
 class ErrorEnv : public EnvWrapper {
- public:
-  bool writable_file_error_;
-  int num_writable_file_errors_;
+public:
+    bool writable_file_error_;
+    int num_writable_file_errors_;
 
-  ErrorEnv() : EnvWrapper(Env::Default()),
-               writable_file_error_(false),
-               num_writable_file_errors_(0) { }
-
-  virtual Status NewWritableFile(const std::string& fname,
-                                 WritableFile** result) {
-    if (writable_file_error_) {
-      ++num_writable_file_errors_;
-      *result = NULL;
-      return Status::IOError(fname, "fake error");
+    ErrorEnv() :
+        EnvWrapper(Env::Default()), writable_file_error_(false),
+                num_writable_file_errors_(0) {
     }
-    return target()->NewWritableFile(fname, result);
-  }
+
+    virtual Status NewWritableFile(const std::string& fname,
+                                   WritableFile** result) {
+        if (writable_file_error_) {
+            ++num_writable_file_errors_;
+            *result = NULL;
+            return Status::IOError(fname, "fake error");
+        }
+        return target()->NewWritableFile(fname, result);
+    }
 };
 
-}  // namespace test
-}  // namespace leveldb
+} // namespace test
+} // namespace leveldb
 #endif
