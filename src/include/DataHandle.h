@@ -20,6 +20,7 @@
 #include "IndexManager.h"
 #include "SuperBlockManager.h"
 #include "SegmentManager.h"
+//#include "IRequest.h"
 
 using namespace std;
 
@@ -32,7 +33,7 @@ class HashEntry;
 class IndexManager;
 class SegmentManager;
 class SegmentSlice;
-
+class IRequest;
 
 class KVSlice {
 public:
@@ -41,8 +42,8 @@ public:
     KVSlice(const KVSlice& toBeCopied);
     KVSlice& operator=(const KVSlice& toBeCopied);
 
-    KVSlice(const char* key, int key_len, const char* data, int data_len);
-    KVSlice(Kvdb_Digest *digest, const char* data, int data_len);
+    KVSlice(const char* key, uint32_t key_len, const char* data, uint16_t data_len);
+    KVSlice(Kvdb_Digest *digest, const char* data, uint32_t data_len);
 
     const Kvdb_Digest& GetDigest() const {
         return *digest_;
@@ -66,7 +67,7 @@ public:
         return dataLength_;
     }
 
-    bool IsAlignedData() const{
+    bool IsAlignedData() const {
         return GetDataLen() == ALIGNED_SIZE;
     }
 
@@ -78,10 +79,10 @@ public:
         return segId_;
     }
 
-    void SetKeyValue(const char* key, int key_len, const char* data, int data_len);
+    void SetKeyValue(const char* key, uint32_t key_len, const char* data,
+                     uint16_t data_len);
     void SetHashEntry(const HashEntry *hash_entry);
     void SetSegId(uint32_t seg_id);
-
 
 private:
     const char* key_;
@@ -97,7 +98,7 @@ private:
 
 };
 
-class Request {
+class IRequest {
 public:
     enum ReqStat {
         INIT = 0,
@@ -106,15 +107,13 @@ public:
     };
 
 public:
-    Request();
-    ~Request();
-    Request(const Request& toBeCopied);
-    Request& operator=(const Request& toBeCopied);
-    Request(KVSlice& slice);
+    IRequest();
+    IRequest(KVSlice& slice);
+    ~IRequest();
 
-    KVSlice& GetSlice() const {
-        return *slice_;
-    }
+    virtual KVSlice& GetSlice() =0;
+    virtual std::list<KVSlice *>& getSlices() =0;
+    virtual void addSlice(KVSlice& slice)=0;
 
     bool GetWriteStat() const {
         return stat_ == ReqStat::SUCCESS;
@@ -130,17 +129,42 @@ public:
         return segPtr_;
     }
 
+    int getType(){
+        return type;
+    }
     void Wait();
     void Signal();
 
-private:
+protected:
+    int type; //0 single 1 batch
     bool done_;
     ReqStat stat_;
-    KVSlice *slice_;
     mutable std::mutex mtx_;
     std::condition_variable cv_;
-
     SegmentSlice *segPtr_;
+    KVSlice *slice_;
+    std::list<KVSlice *> *slices_;
+
+};
+
+class Request : public IRequest {
+public:
+    Request();
+    Request(KVSlice& slice);
+    Request(const Request& toBeCopied);
+    Request& operator=(const Request& toBeCopied);
+    ~Request();
+
+    virtual KVSlice& GetSlice() {
+        return *slice_;
+    }
+    virtual std::list<KVSlice *>& getSlices() {
+
+    }
+
+    virtual void addSlice(KVSlice& slice){
+    }
+
 };
 
 class SegmentSlice {
@@ -153,8 +177,8 @@ public:
     SegmentSlice(SegmentManager* sm, IndexManager* im, BlockDevice* bdev,
                  uint32_t timeout);
 
-    bool TryPut(Request* req);
-    void Put(Request* req);
+    bool TryPut(IRequest* req);
+    void Put(IRequest* req);
     bool WriteSegToDevice(uint32_t seg_id);
     void Complete();
     void Notify(bool stat);
@@ -172,7 +196,7 @@ public:
     }
 
 private:
-    bool isCanFit(Request* req) const;
+    bool isCanFit(IRequest* req) const;
     void copyHelper(const SegmentSlice& toBeCopied);
     void fillSlice();
     void fillSegHead();
@@ -199,7 +223,7 @@ private:
 
     std::atomic<int32_t> reqCommited_;
 
-    std::list<Request *> reqList_;
+    std::list<IRequest *> reqList_;
     SegmentOnDisk *segOndisk_;
 
     mutable std::mutex mtx_;

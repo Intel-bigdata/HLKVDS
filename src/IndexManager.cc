@@ -25,6 +25,13 @@ DataHeader::DataHeader(const Kvdb_Digest &digest, uint16_t size,
             next_header_offset(next_offset) {
 }
 
+DataHeader::DataHeader(uint32_t len, const char *key,
+                       const Kvdb_Digest &digest, uint16_t size,
+                       uint32_t offset, uint32_t next_offset) :
+    key_len(len), key_data(key), key_digest(digest), data_size(size),
+            data_offset(offset), next_header_offset(next_offset) {
+}
+
 DataHeader::~DataHeader() {
 }
 
@@ -148,12 +155,12 @@ bool IndexManager::LoadIndexFromDevice(uint64_t offset, uint32_t ht_size) {
     int64_t timeLength = KVTime::SizeOf();
     if (!rebuildTime(offset)) {
         return false;
-    } __DEBUG("Load Hashtable timestamp: %s", KVTime::ToChar(*lastTime_));
+    }__DEBUG("Load Hashtable timestamp: %s", KVTime::ToChar(*lastTime_));
     offset += timeLength;
 
     if (!rebuildHashTable(offset)) {
         return false;
-    } __DEBUG("Rebuild Hashtable Success");
+    }__DEBUG("Rebuild Hashtable Success");
 
     //Update data theory size from superblock
     dataTheorySize_ = sbMgr_->GetDataTheorySize();
@@ -183,12 +190,12 @@ bool IndexManager::WriteIndexToDevice() {
     int64_t timeLength = KVTime::SizeOf();
     if (!persistTime(offset)) {
         return false;
-    } __DEBUG("Write Hashtable timestamp: %s", KVTime::ToChar(*lastTime_));
+    }__DEBUG("Write Hashtable timestamp: %s", KVTime::ToChar(*lastTime_));
     offset += timeLength;
 
     if (!persistHashTable(offset)) {
         return false;
-    } __DEBUG("Persist Hashtable Success");
+    }__DEBUG("Persist Hashtable Success");
 
     //Update data theory size to superblock
     sbMgr_->SetDataTheorySize(dataTheorySize_);
@@ -217,9 +224,9 @@ bool IndexManager::UpdateIndex(KVSlice* slice) {
 
     uint32_t hash_index = KeyDigestHandle::Hash(digest) % htSize_;
 
-    std::unique_lock<std::mutex> meta_lck(mtx_, std::defer_lock);
+    std::unique_lock < std::mutex > meta_lck(mtx_, std::defer_lock);
 
-    std::lock_guard<std::mutex> l(hashtable_[hash_index].slotMtx_);
+    std::lock_guard < std::mutex > l(hashtable_[hash_index].slotMtx_);
     LinkedList<HashEntry> *entry_list = hashtable_[hash_index].entryList_;
 
     bool is_exist = entry_list->search(entry);
@@ -241,37 +248,40 @@ bool IndexManager::UpdateIndex(KVSlice* slice) {
             meta_lck.unlock();
 
             __DEBUG("UpdateIndex request, because this entry is not exist! Now dataTheorySize_ is %ld", dataTheorySize_);
-        }
-        else {
+        } else {
             //It's a invalid delete operation
             segMgr_->ModifyDeathEntry(entry);
             __DEBUG("Ignore the UpdateIndex request, because this is a delete operation but not exist in Memory");
         }
-    }
-    else {
+    } else {
         HashEntry *entry_inMem = entry_list->getRef(entry);
         HashEntry::LogicStamp *lts = entry.GetLogicStamp();
         HashEntry::LogicStamp *lts_inMem = entry_inMem->GetLogicStamp();
 
-        if ( *lts < *lts_inMem) {
+        if (*lts < *lts_inMem) {
             segMgr_->ModifyDeathEntry(entry);
             __DEBUG("Ignore the UpdateIndex request, because request is expired!");
-        }
-        else {
+        } else {
             //this operation is need to do
             segMgr_->ModifyDeathEntry(*entry_inMem);
 
-            uint16_t data_size = entry.GetDataSize() ;
+            uint16_t data_size = entry.GetDataSize();
             uint16_t data_inMem_size = entry_inMem->GetDataSize();
 
             meta_lck.lock();
             if (data_size == 0) {
-                dataTheorySize_ -= (uint64_t)(SizeOfDataHeader() + data_inMem_size);
-            }
-            else {
-                dataTheorySize_ += ( data_size > data_inMem_size? 
-                        ((uint64_t)(data_size - data_inMem_size)) : 
-                        -((uint64_t)(data_inMem_size - data_size)) );
+                dataTheorySize_ -= (uint64_t)(
+                                              SizeOfDataHeader()
+                                                      + data_inMem_size);
+            } else {
+                dataTheorySize_
+                        += (data_size > data_inMem_size
+                                                        ? ((uint64_t)(
+                                                                      data_size
+                                                                              - data_inMem_size))
+                                                        : -((uint64_t)(
+                                                                       data_inMem_size
+                                                                               - data_size)));
             }
             meta_lck.unlock();
 
@@ -294,8 +304,8 @@ void IndexManager::RemoveEntry(HashEntry entry) {
 
     uint32_t hash_index = KeyDigestHandle::Hash(&digest) % htSize_;
 
-    std::unique_lock<std::mutex> meta_lck(mtx_, std::defer_lock);
-    std::lock_guard<std::mutex> l(hashtable_[hash_index].slotMtx_);
+    std::unique_lock < std::mutex > meta_lck(mtx_, std::defer_lock);
+    std::lock_guard < std::mutex > l(hashtable_[hash_index].slotMtx_);
     LinkedList<HashEntry> *entry_list = hashtable_[hash_index].entryList_;
 
     HashEntry *entry_inMem = entry_list->getRef(entry);
@@ -325,12 +335,13 @@ bool IndexManager::GetHashEntry(KVSlice *slice) {
     HashEntry entry;
     entry.SetKeyDigest(*digest);
 
-    std::lock_guard<std::mutex> l(hashtable_[hash_index].slotMtx_);
+    std::lock_guard < std::mutex > l(hashtable_[hash_index].slotMtx_);
     LinkedList<HashEntry> *entry_list = hashtable_[hash_index].entryList_;
 
     if (entry_list->search(entry)) {
         vector<HashEntry> tmp_vec = entry_list->get();
-        for (vector<HashEntry>::iterator iter = tmp_vec.begin(); iter!=tmp_vec.end(); iter++) {
+        for (vector<HashEntry>::iterator iter = tmp_vec.begin(); iter
+                != tmp_vec.end(); iter++) {
             if (iter->GetKeyDigest() == *digest) {
                 entry = *iter;
                 slice->SetHashEntry(&entry);
@@ -344,22 +355,154 @@ bool IndexManager::GetHashEntry(KVSlice *slice) {
     return false;
 }
 
+void IndexManager::iterator() {
+    index_ = 0;
+    initializeHashTable();
+}
+void IndexManager::initializeHashTable() {
+
+    LinkedList<HashEntry> *entry_list;
+    for (int i = 0; i < htSize_; i++) {
+        entry_list = hashtable_[i].entryList_;
+        if (entry_list->get_size() > 0) {
+            entry_list->iterator();
+        }
+    }
+}
+
+HashEntry* IndexManager::Seek(const char* key) {
+    initializeHashTable();
+    LinkedList<HashEntry> *entry_list;
+    for (int i = 0; i < htSize_; i++) {
+        entry_list = hashtable_[i].entryList_;
+        if (entry_list->get_size() > 0) {
+            Node<HashEntry>* node;
+            while (true) {
+                node = entry_list->GetNext();
+                if (NULL == node) {
+                    break;
+                }
+                HashEntry* entry = &node->data;
+                if (strcmp(entry->GetKeyData(), key) == 0) {
+                    return entry;
+                }
+            }
+
+        }
+    }
+
+    /*for (int i = 0; i < htSize_; i++) {
+     vector<HashEntry> tmp_vec = hashtable_[i].entryList_->get();
+     for (vector<HashEntry>::iterator iter = tmp_vec.begin(); iter
+     != tmp_vec.end(); iter++) {
+     if (strcmp(iter->GetKeyData(), key) == 0) {
+     HashEntry *entry=&(*iter);
+     return entry;
+     }
+
+     }
+     }*/
+}
+
+HashEntry* IndexManager::SeekToFirst() {
+    LinkedList<HashEntry> *entry_list;
+    HashEntry *first = NULL;
+    for (int i = 0; i < htSize_; i++) {
+        entry_list = hashtable_[i].entryList_;
+        if (entry_list->get_size() > 0) {
+            entry_list->iterator();
+            if (NULL == first) {
+                first = &entry_list->GetHead()->data;
+                index_ = i;
+            }
+
+        }
+    }
+
+    return first;
+}
+
+HashEntry* IndexManager::SeekToLast() {
+    LinkedList<HashEntry> *entry_list;
+    HashEntry *last = NULL;
+    for (int i = htSize_ - 1; i >= 0; i--) {
+        entry_list = hashtable_[i].entryList_;
+        if (entry_list->get_size() > 0) {
+            entry_list->iterator();
+            if (NULL == last) {
+                last = &entry_list->GetLast()->data;
+                index_ = i;
+            }
+        }
+    }
+
+    return last;
+}
+
+HashEntry* IndexManager::Next() {
+
+    if (index_ >= htSize_) {
+        return NULL;
+    }
+
+    LinkedList<HashEntry> *entry_list = hashtable_[index_].entryList_;
+    if (entry_list->get_size() > 0) {
+        /*HashEntry* entry = &entry_list->GetNext()->data;
+        if (NULL != entry) {
+            return entry;
+        }*/
+        Node<HashEntry>* node = entry_list->GetNext();
+        if (NULL != node) {
+            HashEntry* entry = &node ->data;
+            if (NULL != entry) {
+                return entry;
+            }
+        }
+
+    }
+
+    index_++;
+    Next();
+}
+
+HashEntry* IndexManager::Prev() {
+    if (index_ < 0) {
+        return NULL;
+    }
+
+    LinkedList<HashEntry> *entry_list = hashtable_[index_].entryList_;
+    if (entry_list->get_size() > 0) {
+        /* std::cout << "entry list size:" << entry_list->get_size() << ",index:"
+         << index_ << std::endl;*/
+        Node<HashEntry>* node = entry_list->GetPrev();
+        if (NULL != node) {
+            HashEntry* entry = &node ->data;
+            if (NULL != entry) {
+                return entry;
+            }
+        }
+
+    }
+
+    index_--;
+    Prev();
+}
+
 uint64_t IndexManager::GetDataTheorySize() const {
-    std::lock_guard<std::mutex> l(mtx_);
+    std::lock_guard < std::mutex > l(mtx_);
     return dataTheorySize_;
 }
 
 uint32_t IndexManager::GetKeyCounter() const {
-    std::lock_guard<std::mutex> l(mtx_);
+    std::lock_guard < std::mutex > l(mtx_);
     return keyCounter_;
 }
 
-bool IndexManager::IsSameInMem(HashEntry entry)
-{
+bool IndexManager::IsSameInMem(HashEntry entry) {
     Kvdb_Digest digest = entry.GetKeyDigest();
     uint32_t hash_index = KeyDigestHandle::Hash(&digest) % htSize_;
 
-    std::lock_guard<std::mutex> l(hashtable_[hash_index].slotMtx_);
+    std::lock_guard < std::mutex > l(hashtable_[hash_index].slotMtx_);
     LinkedList<HashEntry> *entry_list = hashtable_[hash_index].entryList_;
 
     bool is_exist = entry_list->search(entry);
@@ -454,7 +597,7 @@ bool IndexManager::rebuildHashTable(uint64_t offset) {
     //Convert hashtable from device to memory
     if (!convertHashEntryFromDiskToMem(counter, entry_ondisk)) {
         return false;
-    } 
+    }
     __DEBUG("rebuild hash_table success");
 
     delete[] entry_ondisk;
@@ -501,8 +644,7 @@ bool IndexManager::convertHashEntryFromDiskToMem(int* counter,
     return true;
 }
 
-bool IndexManager::persistHashTable(uint64_t offset)
-{
+bool IndexManager::persistHashTable(uint64_t offset) {
     uint32_t entry_total = 0;
 
     //write hashtable to device
@@ -514,7 +656,7 @@ bool IndexManager::persistHashTable(uint64_t offset)
         entry_total += counter[i];
     }
 
-    if (!writeDataToDevice((void*)counter, table_length, offset)) {
+    if (!writeDataToDevice((void*) counter, table_length, offset)) {
         return false;
     }
     offset += table_length;
@@ -527,12 +669,13 @@ bool IndexManager::persistHashTable(uint64_t offset)
     int entry_index = 0;
     for (uint32_t i = 0; i < htSize_; i++) {
         vector<HashEntry> tmp_vec = hashtable_[i].entryList_->get();
-        for (vector<HashEntry>::iterator iter = tmp_vec.begin(); iter!=tmp_vec.end(); iter++) {
+        for (vector<HashEntry>::iterator iter = tmp_vec.begin(); iter
+                != tmp_vec.end(); iter++) {
             entry_ondisk[entry_index++] = (iter->GetEntryOnDisk());
         }
     }
 
-    if (!writeDataToDevice((void *)entry_ondisk, length, offset)) {
+    if (!writeDataToDevice((void *) entry_ondisk, length, offset)) {
         return false;
     }
     delete[] entry_ondisk;

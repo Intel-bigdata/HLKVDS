@@ -28,6 +28,8 @@ class SegmentSlice;
 
 class DataHeader {
 private:
+    uint32_t key_len;
+    const char *key_data;
     Kvdb_Digest key_digest;
     uint16_t data_size;
     uint32_t data_offset;
@@ -36,6 +38,8 @@ private:
 public:
     DataHeader();
     DataHeader(const Kvdb_Digest &digest, uint16_t data_size,
+               uint32_t data_offset, uint32_t next_header_offset);
+    DataHeader(uint32_t key_len,const char *key_data,const Kvdb_Digest &digest, uint16_t data_size,
                uint32_t data_offset, uint32_t next_header_offset);
     ~DataHeader();
 
@@ -61,6 +65,20 @@ public:
     }
     void SetNextHeadOffset(uint32_t offset) {
         next_header_offset = offset;
+    }
+
+    void SetKeyLen(uint32_t len){
+        key_len=len;
+    }
+
+    uint32_t GetKeyLen(){
+        return key_len;
+    }
+    void SetKey(const char* key){
+        key_data=key;
+    }
+    const char* GetKey() const{
+        return key_data;
     }
 
 }__attribute__((__packed__));
@@ -97,6 +115,13 @@ public:
     ~HashEntryOnDisk();
     HashEntryOnDisk& operator=(const HashEntryOnDisk& toBeCopied);
 
+
+    uint32_t GetKeyLen(){
+        return header.GetKeyLen();
+    }
+    const char* GetKeyData() const{
+        return header.GetKey();
+    }
     uint64_t GetHeaderOffsetPhy() const {
         return header_offset.GetHeaderOffset();
     }
@@ -196,6 +221,16 @@ public:
             return entryPtr_->GetDataSize();
         }
 
+        //add
+        uint32_t GetKeySize() const {
+            return entryPtr_->GetKeyLen();
+        }
+
+        const char* GetKeyData() const{
+            return entryPtr_->GetKeyData();
+        }
+
+
         uint32_t GetDataOffsetInSeg() const {
             return entryPtr_->GetDataOffsetInSeg();
         }
@@ -230,8 +265,6 @@ public:
 
     };
 
-    
-
     class IndexManager{
     public:
         static inline size_t SizeOfDataHeader() {
@@ -265,6 +298,15 @@ public:
 
         bool IsSameInMem(HashEntry entry);
 
+        void iterator();
+        void initializeHashTable();
+        HashEntry* Seek(const char* key);
+        HashEntry* SeekToFirst();
+        HashEntry* Next();
+        HashEntry* SeekToLast();
+        HashEntry* Prev();
+
+
     public:
         struct HashtableSlot
         {
@@ -296,6 +338,7 @@ public:
 
         HashtableSlot *hashtable_;
         uint32_t htSize_;
+        int32_t index_;
         uint32_t keyCounter_;
         uint64_t dataTheorySize_;
         uint64_t startOff_;
@@ -308,7 +351,6 @@ public:
         mutable std::mutex mtx_;
 
     };
-
 
 }// namespace kvdb
 #endif //#ifndef _KV_DB_INDEXMANAGER_H_
