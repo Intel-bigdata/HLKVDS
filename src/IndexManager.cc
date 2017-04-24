@@ -25,12 +25,21 @@ DataHeader::DataHeader(const Kvdb_Digest &digest, uint16_t size,
             next_header_offset(next_offset) {
 }
 
-DataHeader::DataHeader(uint32_t len, const char *key,
+DataHeader::DataHeader(const char* key, uint32_t len,
                        const Kvdb_Digest &digest, uint16_t size,
                        uint32_t offset, uint32_t next_offset) :
-    key_len(len), key_data(key), key_digest(digest), data_size(size),
-            data_offset(offset), next_header_offset(next_offset) {
+    key_data(key),key_len(len),key_digest(digest), data_size(size), data_offset(offset),
+            next_header_offset(next_offset) {
+
 }
+
+/*
+DataHeader::DataHeader(string key, const Kvdb_Digest &digest, uint16_t size,
+                       uint32_t offset, uint32_t next_offset) :
+    key_data(key), key_digest(digest), data_size(size), data_offset(offset),
+            next_header_offset(next_offset) {
+}
+*/
 
 DataHeader::~DataHeader() {
 }
@@ -223,6 +232,7 @@ bool IndexManager::UpdateIndex(KVSlice* slice) {
     const char* data = slice->GetData();
 
     uint32_t hash_index = KeyDigestHandle::Hash(digest) % htSize_;
+    cout<<"update index:"<<hash_index<<endl;
 
     std::unique_lock < std::mutex > meta_lck(mtx_, std::defer_lock);
 
@@ -332,11 +342,16 @@ void IndexManager::RemoveEntry(HashEntry entry) {
 bool IndexManager::GetHashEntry(KVSlice *slice) {
     const Kvdb_Digest *digest = &slice->GetDigest();
     uint32_t hash_index = KeyDigestHandle::Hash(digest) % htSize_;
+
     HashEntry entry;
     entry.SetKeyDigest(*digest);
 
+    cout<<"lock a hash table by index:"<<hash_index<<"from size:"<<htSize_<<endl;
     std::lock_guard < std::mutex > l(hashtable_[hash_index].slotMtx_);
+    cout<<"get a hash table"<<endl;
     LinkedList<HashEntry> *entry_list = hashtable_[hash_index].entryList_;
+
+    cout<<"start search..."<<endl;
 
     if (entry_list->search(entry)) {
         vector<HashEntry> tmp_vec = entry_list->get();
@@ -447,10 +462,6 @@ HashEntry* IndexManager::Next() {
 
     LinkedList<HashEntry> *entry_list = hashtable_[index_].entryList_;
     if (entry_list->get_size() > 0) {
-        /*HashEntry* entry = &entry_list->GetNext()->data;
-        if (NULL != entry) {
-            return entry;
-        }*/
         Node<HashEntry>* node = entry_list->GetNext();
         if (NULL != node) {
             HashEntry* entry = &node ->data;
@@ -472,8 +483,6 @@ HashEntry* IndexManager::Prev() {
 
     LinkedList<HashEntry> *entry_list = hashtable_[index_].entryList_;
     if (entry_list->get_size() > 0) {
-        /* std::cout << "entry list size:" << entry_list->get_size() << ",index:"
-         << index_ << std::endl;*/
         Node<HashEntry>* node = entry_list->GetPrev();
         if (NULL != node) {
             HashEntry* entry = &node ->data;
@@ -597,8 +606,7 @@ bool IndexManager::rebuildHashTable(uint64_t offset) {
     //Convert hashtable from device to memory
     if (!convertHashEntryFromDiskToMem(counter, entry_ondisk)) {
         return false;
-    }
-    __DEBUG("rebuild hash_table success");
+    }__DEBUG("rebuild hash_table success");
 
     delete[] entry_ondisk;
     delete[] counter;

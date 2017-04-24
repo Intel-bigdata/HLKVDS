@@ -103,7 +103,6 @@ TEST_F(TestIterator,prev)
 
 }
 
-
 TEST_F(TestIterator,seek)
 {
     const char* key="test-key4";
@@ -111,7 +110,8 @@ TEST_F(TestIterator,seek)
     Status s=iter->Seek(key);
 
     if(s.ok()&&iter->Valid()){
-        EXPECT_EQ(key,iter->Key());
+        string res=iter->Key();
+        EXPECT_EQ(key,res.substr(0,res.length()-1));
         EXPECT_EQ(test_value,iter->Value());
     }else{
         EXPECT_TRUE(false);

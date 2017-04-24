@@ -202,6 +202,7 @@ private:
     void fillSegHead();
     void notifyAndClean(bool req_state);
     bool _writeDataToDevice();
+    uint32_t CopyDataHeader(char* data_buff, DataHeader* header);
     void copyToData(char* data_buff);
 
     uint32_t segId_;

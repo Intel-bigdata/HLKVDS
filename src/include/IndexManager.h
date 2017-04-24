@@ -28,8 +28,8 @@ class SegmentSlice;
 
 class DataHeader {
 private:
+    const char* key_data;
     uint32_t key_len;
-    const char *key_data;
     Kvdb_Digest key_digest;
     uint16_t data_size;
     uint32_t data_offset;
@@ -39,9 +39,12 @@ public:
     DataHeader();
     DataHeader(const Kvdb_Digest &digest, uint16_t data_size,
                uint32_t data_offset, uint32_t next_header_offset);
-    DataHeader(uint32_t key_len,const char *key_data,const Kvdb_Digest &digest, uint16_t data_size,
-               uint32_t data_offset, uint32_t next_header_offset);
+    DataHeader(const char* key_data,uint32_t key_len, const Kvdb_Digest &digest, uint16_t data_size,
+                   uint32_t data_offset, uint32_t next_header_offset);
     ~DataHeader();
+    static uint32_t SizeOfDataHeader(){
+        return sizeof(key_len)+sizeof(key_digest)+sizeof(data_size)+sizeof(data_offset)+sizeof(next_header_offset);
+    }
 
     uint16_t GetDataSize() const {
         return data_size;
@@ -67,17 +70,13 @@ public:
         next_header_offset = offset;
     }
 
-    void SetKeyLen(uint32_t len){
-        key_len=len;
-    }
-
-    uint32_t GetKeyLen(){
+    uint32_t GetKeyLen() {
         return key_len;
     }
-    void SetKey(const char* key){
-        key_data=key;
-    }
-    const char* GetKey() const{
+   /* void SetKey(const char* key) const {
+        key_data = key;
+    }*/
+    const char* GetKey() {
         return key_data;
     }
 
@@ -115,11 +114,10 @@ public:
     ~HashEntryOnDisk();
     HashEntryOnDisk& operator=(const HashEntryOnDisk& toBeCopied);
 
-
-    uint32_t GetKeyLen(){
+    uint32_t GetKeyLen() {
         return header.GetKeyLen();
     }
-    const char* GetKeyData() const{
+    const char* GetKeyData() {
         return header.GetKey();
     }
     uint64_t GetHeaderOffsetPhy() const {
@@ -203,154 +201,149 @@ public:
             segTime_ = seg_time;
             keyNo_ = seg_key_no;
         }
-        };
-
-        HashEntry();
-        HashEntry(HashEntryOnDisk& entry_ondisk, KVTime time_stamp, void* read_ptr);
-        HashEntry(DataHeader& data_header, uint64_t header_offset, void* read_ptr);
-        HashEntry(const HashEntry&);
-        ~HashEntry();
-        bool operator==(const HashEntry& toBeCompare) const;
-        HashEntry& operator=(const HashEntry& toBeCopied);
-
-        uint64_t GetHeaderOffsetPhy() const {
-            return entryPtr_->GetHeaderOffsetPhy();
-        }
-
-        uint16_t GetDataSize() const {
-            return entryPtr_->GetDataSize();
-        }
-
-        //add
-        uint32_t GetKeySize() const {
-            return entryPtr_->GetKeyLen();
-        }
-
-        const char* GetKeyData() const{
-            return entryPtr_->GetKeyData();
-        }
-
-
-        uint32_t GetDataOffsetInSeg() const {
-            return entryPtr_->GetDataOffsetInSeg();
-        }
-
-        uint32_t GetNextHeadOffsetInSeg() const {
-            return entryPtr_->GetNextHeadOffsetInSeg();
-        }
-
-        void* GetReadCachePtr() const {
-            return cachePtr_;
-        }
-
-        Kvdb_Digest GetKeyDigest() const {
-            return entryPtr_->GetKeyDigest();
-        }
-
-        HashEntryOnDisk& GetEntryOnDisk() {
-            return *entryPtr_;
-        }
-
-        LogicStamp* GetLogicStamp() {
-            return stampPtr_;
-        }
-
-        void SetKeyDigest(const Kvdb_Digest& digest);
-        void SetLogicStamp(KVTime seg_time, int32_t seg_key_no);
-
-    private:
-        HashEntryOnDisk *entryPtr_;
-        LogicStamp *stampPtr_;
-        void* cachePtr_;
-
     };
 
-    class IndexManager{
-    public:
-        static inline size_t SizeOfDataHeader() {
-            return sizeof(DataHeader);
+    HashEntry();
+    HashEntry(HashEntryOnDisk& entry_ondisk, KVTime time_stamp, void* read_ptr);
+    HashEntry(DataHeader& data_header, uint64_t header_offset, void* read_ptr);
+    HashEntry(const HashEntry&);
+    ~HashEntry();
+    bool operator==(const HashEntry& toBeCompare) const;
+    HashEntry& operator=(const HashEntry& toBeCopied);
+
+    uint64_t GetHeaderOffsetPhy() const {
+        return entryPtr_->GetHeaderOffsetPhy();
+    }
+
+    uint16_t GetDataSize() const {
+        return entryPtr_->GetDataSize();
+    }
+
+    //add
+    uint32_t GetKeySize() const {
+        return entryPtr_->GetKeyLen();
+    }
+
+    const char* GetKeyData() {
+        return entryPtr_->GetKeyData();
+    }
+
+    uint32_t GetDataOffsetInSeg() const {
+        return entryPtr_->GetDataOffsetInSeg();
+    }
+
+    uint32_t GetNextHeadOffsetInSeg() const {
+        return entryPtr_->GetNextHeadOffsetInSeg();
+    }
+
+    void* GetReadCachePtr() const {
+        return cachePtr_;
+    }
+
+    Kvdb_Digest GetKeyDigest() const {
+        return entryPtr_->GetKeyDigest();
+    }
+
+    HashEntryOnDisk& GetEntryOnDisk() {
+        return *entryPtr_;
+    }
+
+    LogicStamp* GetLogicStamp() {
+        return stampPtr_;
+    }
+
+    void SetKeyDigest(const Kvdb_Digest& digest);
+    void SetLogicStamp(KVTime seg_time, int32_t seg_key_no);
+
+private:
+    HashEntryOnDisk *entryPtr_;
+    LogicStamp *stampPtr_;
+    void* cachePtr_;
+};
+
+class IndexManager {
+public:
+    static inline size_t SizeOfDataHeader() {
+        return DataHeader::SizeOfDataHeader();
+    }
+    static inline size_t SizeOfHashEntryOnDisk() {
+        return sizeof(HashEntryOnDisk);
+    }
+
+    static uint64_t ComputeIndexSizeOnDevice(uint32_t ht_size);
+    static uint32_t ComputeHashSizeForPower2(uint32_t number);
+    bool InitIndexForCreateDB(uint64_t offset, uint32_t numObjects);
+
+    bool LoadIndexFromDevice(uint64_t offset, uint32_t ht_size);
+    bool WriteIndexToDevice();
+
+    bool UpdateIndex(KVSlice* slice);
+    bool GetHashEntry(KVSlice *slice);
+    void RemoveEntry(HashEntry entry);
+
+    uint32_t GetHashTableSize() const {
+        return htSize_;
+    }
+
+    uint64_t GetDataTheorySize() const ;
+    uint32_t GetKeyCounter() const ;
+
+    IndexManager(BlockDevice* bdev, SuperBlockManager* sbMgr_,
+                 SegmentManager* segMgr_, Options &opt);
+    ~IndexManager();
+
+    bool IsSameInMem(HashEntry entry);
+
+    void iterator();
+    void initializeHashTable();
+    HashEntry* Seek(const char* key);
+    HashEntry* SeekToFirst();
+    HashEntry* Next();
+    HashEntry* SeekToLast();
+    HashEntry* Prev();
+
+public:
+    struct HashtableSlot {
+        LinkedList<HashEntry> *entryList_;
+        std::mutex slotMtx_;
+        HashtableSlot() {
+            entryList_ = new LinkedList<HashEntry> ;
         }
-
-        static inline size_t SizeOfHashEntryOnDisk() {
-            return sizeof(HashEntryOnDisk);
+        ~HashtableSlot() {
+            delete entryList_;
         }
-
-        static uint64_t ComputeIndexSizeOnDevice(uint32_t ht_size);
-        static uint32_t ComputeHashSizeForPower2(uint32_t number);
-        bool InitIndexForCreateDB(uint64_t offset, uint32_t numObjects);
-
-        bool LoadIndexFromDevice(uint64_t offset, uint32_t ht_size);
-        bool WriteIndexToDevice();
-
-        bool UpdateIndex(KVSlice* slice);
-        bool GetHashEntry(KVSlice *slice);
-        void RemoveEntry(HashEntry entry);
-
-        uint32_t GetHashTableSize() const {
-            return htSize_;
-        }
-
-        uint64_t GetDataTheorySize() const ;
-        uint32_t GetKeyCounter() const ;
-
-        IndexManager(BlockDevice* bdev, SuperBlockManager* sbMgr_, SegmentManager* segMgr_, Options &opt);
-        ~IndexManager();
-
-        bool IsSameInMem(HashEntry entry);
-
-        void iterator();
-        void initializeHashTable();
-        HashEntry* Seek(const char* key);
-        HashEntry* SeekToFirst();
-        HashEntry* Next();
-        HashEntry* SeekToLast();
-        HashEntry* Prev();
-
-
-    public:
-        struct HashtableSlot
-        {
-            LinkedList<HashEntry> *entryList_;
-            std::mutex slotMtx_;
-            HashtableSlot()
-            {
-                entryList_ = new LinkedList<HashEntry>;
-            }
-            ~HashtableSlot()
-            {
-                delete entryList_;
-            }
-        };
-
-    private:
-
-        void initHashTable(uint32_t size);
-        void destroyHashTable();
-
-        bool rebuildHashTable(uint64_t offset);
-        bool rebuildTime(uint64_t offset);
-        bool loadDataFromDevice(void* data, uint64_t length, uint64_t offset); 
-        bool convertHashEntryFromDiskToMem(int* counter, HashEntryOnDisk* entry_ondisk);
-
-        bool persistHashTable(uint64_t offset);
-        bool persistTime(uint64_t offset);
-        bool writeDataToDevice(void* data, uint64_t length, uint64_t offset);
-
-        HashtableSlot *hashtable_;
-        uint32_t htSize_;
-        int32_t index_;
-        uint32_t keyCounter_;
-        uint64_t dataTheorySize_;
-        uint64_t startOff_;
-        BlockDevice* bdev_;
-        SuperBlockManager* sbMgr_;
-        SegmentManager* segMgr_;
-        Options &options_;
-
-        KVTime* lastTime_;
-        mutable std::mutex mtx_;
-
     };
+
+private:
+
+    void initHashTable(uint32_t size);
+    void destroyHashTable();
+
+    bool rebuildHashTable(uint64_t offset);
+    bool rebuildTime(uint64_t offset);
+    bool loadDataFromDevice(void* data, uint64_t length, uint64_t offset);
+    bool convertHashEntryFromDiskToMem(int* counter,
+                                       HashEntryOnDisk* entry_ondisk);
+
+    bool persistHashTable(uint64_t offset);
+    bool persistTime(uint64_t offset);
+    bool writeDataToDevice(void* data, uint64_t length, uint64_t offset);
+
+    HashtableSlot *hashtable_;
+    uint32_t htSize_;
+    int32_t index_;
+    uint32_t keyCounter_;
+    uint64_t dataTheorySize_;
+    uint64_t startOff_;
+    BlockDevice* bdev_;
+    SuperBlockManager* sbMgr_;
+    SegmentManager* segMgr_;
+    Options &options_;
+
+    KVTime* lastTime_;
+    mutable std::mutex mtx_;
+
+};
 
 }// namespace kvdb
 #endif //#ifndef _KV_DB_INDEXMANAGER_H_

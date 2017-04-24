@@ -25,7 +25,7 @@ namespace kvdb {
 #define GC_UPPER_LEVEL 0.3
 #define GC_LOWER_LEVEL 0.1
 
-//#define DEBUG
+#define DEBUG
 #define INFO
 #define WARN
 #define ERROR

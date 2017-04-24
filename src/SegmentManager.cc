@@ -268,7 +268,7 @@ void SegmentManager::ModifyDeathEntry(HashEntry &entry) {
 
     uint16_t data_size = entry.GetDataSize();
     uint32_t death_size = (uint32_t) data_size
-            + (uint32_t) IndexManager::SizeOfDataHeader();
+            + (uint32_t) IndexManager::SizeOfDataHeader();//TODO
 
     std::lock_guard < std::mutex > l(mtx_);
     segTable_[seg_id].death_size += death_size;

@@ -9,6 +9,7 @@
 
 class TestDb : public TestBase {
 public:
+    string path="/dev/loop2";
     double insert(KvdbDS *db) {
         //insert something
         string test_key = "test_key";
@@ -28,9 +29,39 @@ public:
     }
 };
 
+TEST_F(TestDb,readinopen)
+{
+    KvdbDS *db= Create_DB(100);
+
+    string test_key = "test-key";
+    int test_key_size = 8;
+    string test_value = "test-value";
+    int test_value_size = 10;
+
+    Status s=db->Insert(test_key.c_str(), test_key_size, test_value.c_str(), test_value_size);
+
+    db->printDbStates();
+    EXPECT_TRUE(s.ok());
+    delete db;
+
+    //open db and read that key
+    Options opts;
+    opts.hashtable_size=100;
+    KvdbDS::Open_KvdbDS(path.c_str(), opts);
+    cout<<"open db success."<<endl;
+    string get_data;
+    s=db->Get(test_key.c_str(), test_key_size, get_data);
+    EXPECT_TRUE(s.ok());
+
+    EXPECT_EQ(test_value,get_data);
+    get_data.clear();
+
+    delete db;
+}
+
+
 TEST_F(TestDb,uninitializeBlockDevice)
 {
-
     KvdbDS *db = KvdbDS::Create_KvdbDS("/dev/loop3", opts);
 
     EXPECT_EQ(NULL,db);
@@ -38,9 +69,7 @@ TEST_F(TestDb,uninitializeBlockDevice)
 
 TEST_F(TestDb,reopendb)
 {
-    //Options opts;
-    string path="/dev/loop2";
-    KvdbDS *db = KvdbDS::Create_KvdbDS(path.c_str(), opts);
+    KvdbDS *db= Create_DB(100);
 
     delete db;
     KvdbDS::Open_KvdbDS(path.c_str(), opts);
@@ -53,7 +82,6 @@ TEST_F(TestDb,reopendb)
 
 TEST_F(TestDb,usedbwithoutdeleting)
 {
-    string path="/dev/loop2";
     KvdbDS *db = KvdbDS::Create_KvdbDS(path.c_str(), opts);
 
     insert(db);
@@ -67,7 +95,6 @@ TEST_F(TestDb,usedbwithoutdeleting)
 TEST_F(TestDb,zerosegmentsize)
 {
     opts.segment_size=0;
-    string path="/dev/loop2";
     KvdbDS *db = KvdbDS::Create_KvdbDS(path.c_str(), opts);
 
     EXPECT_TRUE(NULL==db);

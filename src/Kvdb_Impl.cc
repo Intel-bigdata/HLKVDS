@@ -497,8 +497,6 @@ Status KvdbIter::SeekToFirst() {
 
     status_ = Status::OK();
     return status_;
-
-    //return new KVSlice(first->GetKeyData(), first->GetKeySize(), mdata, data_len);*/
 }
 
 Status KvdbIter::SeekToLast() {
@@ -557,6 +555,7 @@ Status KvdbIter::Seek(const char* key) {
 string KvdbIter::Key() {
     if (valid_) {
         return string(hashEntry_->GetKeyData(), hashEntry_->GetKeySize());
+        //return hashEntry_->GetKeyData();
     }
 }
 string KvdbIter::Value() {
