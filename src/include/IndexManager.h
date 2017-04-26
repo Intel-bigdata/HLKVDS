@@ -28,7 +28,8 @@ class SegmentSlice;
 
 class DataHeader {
 private:
-    const char* key_data;
+    //const char* key_data;
+    uint32_t key_offset;
     uint32_t key_len;
     Kvdb_Digest key_digest;
     uint16_t data_size;
@@ -39,13 +40,16 @@ public:
     DataHeader();
     DataHeader(const Kvdb_Digest &digest, uint16_t data_size,
                uint32_t data_offset, uint32_t next_header_offset);
-    DataHeader(const char* key_data,uint32_t key_len, const Kvdb_Digest &digest, uint16_t data_size,
+    DataHeader(uint32_t key_len, uint32_t key_offset,const Kvdb_Digest &digest, uint16_t data_size,
                    uint32_t data_offset, uint32_t next_header_offset);
     ~DataHeader();
-    static uint32_t SizeOfDataHeader(){
+    /*static uint32_t SizeOfDataHeader(){
         return sizeof(key_len)+sizeof(key_digest)+sizeof(data_size)+sizeof(data_offset)+sizeof(next_header_offset);
-    }
+    }*/
 
+    uint32_t GetKeyOffSet()const{
+        return key_offset;
+    }
     uint16_t GetDataSize() const {
         return data_size;
     }
@@ -76,9 +80,9 @@ public:
    /* void SetKey(const char* key) const {
         key_data = key;
     }*/
-    const char* GetKey() {
+   /* const char* GetKey() {
         return key_data;
-    }
+    }*/
 
 }__attribute__((__packed__));
 
@@ -117,8 +121,8 @@ public:
     uint32_t GetKeyLen() {
         return header.GetKeyLen();
     }
-    const char* GetKeyData() {
-        return header.GetKey();
+    uint32_t GetKeyOffSetInSeg() {
+        return header.GetKeyOffSet();
     }
     uint64_t GetHeaderOffsetPhy() const {
         return header_offset.GetHeaderOffset();
@@ -224,8 +228,8 @@ public:
         return entryPtr_->GetKeyLen();
     }
 
-    const char* GetKeyData() {
-        return entryPtr_->GetKeyData();
+    uint32_t GetKeyOffsetInSeg() {
+        return entryPtr_->GetKeyOffSetInSeg();
     }
 
     uint32_t GetDataOffsetInSeg() const {
@@ -264,7 +268,7 @@ private:
 class IndexManager {
 public:
     static inline size_t SizeOfDataHeader() {
-        return DataHeader::SizeOfDataHeader();
+        return sizeof(DataHeader);
     }
     static inline size_t SizeOfHashEntryOnDisk() {
         return sizeof(HashEntryOnDisk);

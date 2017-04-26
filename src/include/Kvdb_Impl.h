@@ -48,15 +48,17 @@ private:
 
 class KvdbIter {
 public:
-    KvdbIter(IndexManager* idxMgr,SegmentManager* segMgr,BlockDevice* bdev):idxMgr(idxMgr),segMgr(segMgr),bdev(bdev),valid_(false),hashEntry_(new HashEntry()){
+    KvdbIter(IndexManager* idxMgr, SegmentManager* segMgr, BlockDevice* bdev) :
+        idxMgr(idxMgr), segMgr(segMgr), bdev(bdev), valid_(false),
+                hashEntry_(new HashEntry()) {
         idxMgr->iterator();
     }
     virtual ~KvdbIter() {
-        valid_=false;
+        valid_ = false;
     }
 
     bool Valid();
-    Status GetStatus(){
+    Status GetStatus() {
         return status_;
     }
     Status SeekToFirst();
@@ -69,6 +71,12 @@ public:
     Status Next();
     Status Prev();
 
+private:
+    static bool IsPrefix(std::string const& lhs, std::string const& rhs) {
+        return std::equal(lhs.begin(),
+                          lhs.begin() + std::min(lhs.size(), rhs.size()),
+                          rhs.begin());
+    }
 
 private:
     //KvdbDS* ds_;
@@ -172,7 +180,6 @@ private:
 
     void GCThdEntry();
 };
-
 
 } // namespace kvdb
 

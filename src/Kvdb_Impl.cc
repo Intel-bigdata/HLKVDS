@@ -241,7 +241,6 @@ bool KvdbDS::readMetaDataFromDevice() {
             sbMgr_->GetDataRegionSize(),
             (sbMgr_->GetSbSize() + sbMgr_->GetIndexSize() + sbMgr_->GetSegTableSize() + sbMgr_->GetDataRegionSize()),
             sbMgr_->GetDeviceCapacity(), sbMgr_->GetCurSegmentId(), sbMgr_->GetDataTheorySize());
-
     return true;
 }
 
@@ -284,26 +283,26 @@ void KvdbDS::startThds() {
     reqMergeT_ = std::thread(&KvdbDS::ReqMergeThdEntry, this);
 
     segWriteT_stop_.store(false);
-    //for (int i = 0; i < options_.seg_write_thread; i++) {
-    segWriteTP_.push_back(std::thread(&KvdbDS::SegWriteThdEntry, this));
-    //}
+    for (int i = 0; i < options_.seg_write_thread; i++) {
+        segWriteTP_.push_back(std::thread(&KvdbDS::SegWriteThdEntry, this));
+    }
 
     segTimeoutT_stop_.store(false);
     segTimeoutT_ = std::thread(&KvdbDS::SegTimeoutThdEntry, this);
 
-    /* segReaperT_stop_.store(false);
-     segReaperT_ = std::thread(&KvdbDS::SegReaperThdEntry, this);
+    segReaperT_stop_.store(false);
+    segReaperT_ = std::thread(&KvdbDS::SegReaperThdEntry, this);
 
-     gcT_stop_.store(false);
-     gcT_ = std::thread(&KvdbDS::GCThdEntry, this);*/
+    gcT_stop_.store(false);
+    gcT_ = std::thread(&KvdbDS::GCThdEntry, this);
 }
 
 void KvdbDS::stopThds() {
-    /* gcT_stop_.store(true);
-     gcT_.join();
+    gcT_stop_.store(true);
+    gcT_.join();
 
-     segReaperT_stop_.store(true);
-     segReaperT_.join();*/
+    segReaperT_stop_.store(true);
+    segReaperT_.join();
 
     segTimeoutT_stop_.store(true);
     segTimeoutT_.join();
@@ -414,7 +413,8 @@ Status KvdbDS::Write(WriteBatch *batch) {
     }
     for (list<KVSlice *>::iterator iter = slices->begin(); iter
             != slices->end(); iter++) {
-        total += (*iter)->GetDataLen() + IndexManager::SizeOfDataHeader();
+        total += (*iter)->GetDataLen() + (*iter)->GetKeyLen()
+                + IndexManager::SizeOfDataHeader();
     }
     if (total > segMgr_->GetMaxValueLength()) {
         return Status::NotSupported(
@@ -539,23 +539,50 @@ Status KvdbIter::Prev() {
     return status_;
 }
 
-Status KvdbIter::Seek(const char* key) {
-    hashEntry_ = NULL;
-    hashEntry_ = idxMgr->Seek(key);
-    if (NULL != hashEntry_) {
-        valid_ = true;
-    } else {
-        valid_ = false;
-    }
+/*Status KvdbIter::Seek(const char* key) {
+ hashEntry_ = idxMgr->Seek(key);
+ if (NULL != hashEntry_) {
+ valid_ = true;
+ } else {
+ valid_ = false;
+ }
 
+ status_ = Status::OK();
+ return status_;
+ }*/
+
+Status KvdbIter::Seek(const char* prefix) {
     status_ = Status::OK();
+    HashEntry *temp=NULL;
+    while ((temp = idxMgr->Next()) != NULL) {
+        valid_=true;
+        hashEntry_=temp;
+        string key=Key();
+        if (strcmp(prefix, key.c_str())==0) {
+            //TODO
+            return status_;
+        }
+    }
+    hashEntry_=NULL;
     return status_;
 }
 
 string KvdbIter::Key() {
     if (valid_) {
-        return string(hashEntry_->GetKeyData(), hashEntry_->GetKeySize());
-        //return hashEntry_->GetKeyData();
+        uint64_t key_offset = 0;
+        if (!segMgr->ComputeKeyOffsetPhyFromEntry(hashEntry_, key_offset)) {
+            return NULL;
+        }
+        //cout<<"key offset:"<<key_offset<<endl;
+        uint16_t key_len = hashEntry_->GetKeySize();
+        char *mdata = new char[key_len];
+        if (bdev->pRead(mdata, key_len, key_offset) != (ssize_t) key_len) {
+            __ERROR("Could not read data at position");
+            delete[] mdata;
+            return NULL;
+        }
+
+        return string(mdata, key_len);
     }
 }
 string KvdbIter::Value() {
@@ -564,7 +591,7 @@ string KvdbIter::Value() {
         if (!segMgr->ComputeDataOffsetPhyFromEntry(hashEntry_, data_offset)) {
             return NULL;
         }
-
+        //cout<<"data offset:"<<data_offset<<endl;
         uint16_t data_len = hashEntry_->GetDataSize();
         char *mdata = new char[data_len];
         if (bdev->pRead(mdata, data_len, data_offset) != (ssize_t) data_len) {

@@ -122,8 +122,10 @@ public:
         return true;
     }
 
+
     bool ComputeSegOffsetFromOffset(uint64_t offset, uint64_t& seg_offset);
     bool ComputeDataOffsetPhyFromEntry(HashEntry* entry, uint64_t& data_offset);
+    bool ComputeKeyOffsetPhyFromEntry(HashEntry* entry,uint64_t& key_offset);
 
     bool Alloc(uint32_t& seg_id);
     bool AllocForGC(uint32_t& seg_id);

@@ -49,6 +49,10 @@ public:
         return *digest_;
     }
 
+    void SetKey(const char* key){
+        key_=key;
+    }
+
     const char* GetKey() const {
         return key_;
     }
@@ -59,6 +63,10 @@ public:
 
     string GetKeyStr() const;
     string GetDataStr() const;
+
+    void SetKeyLen(uint32_t len) {
+        keyLength_=len;
+    }
     uint32_t GetKeyLen() const {
         return keyLength_;
     }
@@ -196,13 +204,16 @@ public:
     }
 
 private:
+    void putSlice(KVSlice* slice);
     bool isCanFit(IRequest* req) const;
     void copyHelper(const SegmentSlice& toBeCopied);
-    void fillSlice();
+    void fillSlice(KVSlice* slice,uint32_t *head_pos,uint32_t *tail_pos);
+    void fillSlices();
     void fillSegHead();
     void notifyAndClean(bool req_state);
     bool _writeDataToDevice();
-    uint32_t CopyDataHeader(char* data_buff, DataHeader* header);
+    void copySlice(char* data_buff, KVSlice* slice,uint64_t *offset,
+                   uint32_t *offset_begin,uint32_t *offset_end);
     void copyToData(char* data_buff);
 
     uint32_t segId_;

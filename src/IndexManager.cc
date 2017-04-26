@@ -25,21 +25,13 @@ DataHeader::DataHeader(const Kvdb_Digest &digest, uint16_t size,
             next_header_offset(next_offset) {
 }
 
-DataHeader::DataHeader(const char* key, uint32_t len,
+DataHeader::DataHeader( uint32_t len,uint32_t key_offset,
                        const Kvdb_Digest &digest, uint16_t size,
                        uint32_t offset, uint32_t next_offset) :
-    key_data(key),key_len(len),key_digest(digest), data_size(size), data_offset(offset),
+    key_len(len),key_offset(key_offset),key_digest(digest), data_size(size), data_offset(offset),
             next_header_offset(next_offset) {
 
 }
-
-/*
-DataHeader::DataHeader(string key, const Kvdb_Digest &digest, uint16_t size,
-                       uint32_t offset, uint32_t next_offset) :
-    key_data(key), key_digest(digest), data_size(size), data_offset(offset),
-            next_header_offset(next_offset) {
-}
-*/
 
 DataHeader::~DataHeader() {
 }
@@ -175,7 +167,7 @@ bool IndexManager::LoadIndexFromDevice(uint64_t offset, uint32_t ht_size) {
     dataTheorySize_ = sbMgr_->GetDataTheorySize();
     uint32_t key_num = sbMgr_->GetElementNum();
     if (key_num != keyCounter_) {
-        __ERROR("The Key Number is conflit between superblock and index!!!!!");
+        __ERROR("The Key Number is conflit between superblock and index!!!!!, # 0f Element=%u, key counter=%u",key_num,keyCounter_);
         return false;
     }
 
@@ -232,7 +224,6 @@ bool IndexManager::UpdateIndex(KVSlice* slice) {
     const char* data = slice->GetData();
 
     uint32_t hash_index = KeyDigestHandle::Hash(digest) % htSize_;
-    cout<<"update index:"<<hash_index<<endl;
 
     std::unique_lock < std::mutex > meta_lck(mtx_, std::defer_lock);
 
@@ -254,7 +245,7 @@ bool IndexManager::UpdateIndex(KVSlice* slice) {
 
             meta_lck.lock();
             keyCounter_++;
-            dataTheorySize_ += SizeOfDataHeader() + slice->GetDataLen();
+            dataTheorySize_ += SizeOfDataHeader() + slice->GetDataLen()+slice->GetKeyLen();
             meta_lck.unlock();
 
             __DEBUG("UpdateIndex request, because this entry is not exist! Now dataTheorySize_ is %ld", dataTheorySize_);
@@ -285,13 +276,8 @@ bool IndexManager::UpdateIndex(KVSlice* slice) {
                                                       + data_inMem_size);
             } else {
                 dataTheorySize_
-                        += (data_size > data_inMem_size
-                                                        ? ((uint64_t)(
-                                                                      data_size
-                                                                              - data_inMem_size))
-                                                        : -((uint64_t)(
-                                                                       data_inMem_size
-                                                                               - data_size)));
+                        += (data_size > data_inMem_size? ((uint64_t)(data_size- data_inMem_size))
+                                                        : -((uint64_t)(data_inMem_size- data_size)));
             }
             meta_lck.unlock();
 
@@ -346,12 +332,8 @@ bool IndexManager::GetHashEntry(KVSlice *slice) {
     HashEntry entry;
     entry.SetKeyDigest(*digest);
 
-    cout<<"lock a hash table by index:"<<hash_index<<"from size:"<<htSize_<<endl;
     std::lock_guard < std::mutex > l(hashtable_[hash_index].slotMtx_);
-    cout<<"get a hash table"<<endl;
     LinkedList<HashEntry> *entry_list = hashtable_[hash_index].entryList_;
-
-    cout<<"start search..."<<endl;
 
     if (entry_list->search(entry)) {
         vector<HashEntry> tmp_vec = entry_list->get();
@@ -385,39 +367,6 @@ void IndexManager::initializeHashTable() {
     }
 }
 
-HashEntry* IndexManager::Seek(const char* key) {
-    initializeHashTable();
-    LinkedList<HashEntry> *entry_list;
-    for (int i = 0; i < htSize_; i++) {
-        entry_list = hashtable_[i].entryList_;
-        if (entry_list->get_size() > 0) {
-            Node<HashEntry>* node;
-            while (true) {
-                node = entry_list->GetNext();
-                if (NULL == node) {
-                    break;
-                }
-                HashEntry* entry = &node->data;
-                if (strcmp(entry->GetKeyData(), key) == 0) {
-                    return entry;
-                }
-            }
-
-        }
-    }
-
-    /*for (int i = 0; i < htSize_; i++) {
-     vector<HashEntry> tmp_vec = hashtable_[i].entryList_->get();
-     for (vector<HashEntry>::iterator iter = tmp_vec.begin(); iter
-     != tmp_vec.end(); iter++) {
-     if (strcmp(iter->GetKeyData(), key) == 0) {
-     HashEntry *entry=&(*iter);
-     return entry;
-     }
-
-     }
-     }*/
-}
 
 HashEntry* IndexManager::SeekToFirst() {
     LinkedList<HashEntry> *entry_list;
@@ -430,7 +379,6 @@ HashEntry* IndexManager::SeekToFirst() {
                 first = &entry_list->GetHead()->data;
                 index_ = i;
             }
-
         }
     }
 

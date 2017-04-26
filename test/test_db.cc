@@ -42,21 +42,26 @@ TEST_F(TestDb,readinopen)
 
     db->printDbStates();
     EXPECT_TRUE(s.ok());
+
+    string get_data;
+    s=db->Get(test_key.c_str(), test_key_size, get_data);
+    EXPECT_TRUE(s.ok());
+    EXPECT_EQ(test_value,get_data);
+
     delete db;
 
     //open db and read that key
     Options opts;
     opts.hashtable_size=100;
-    KvdbDS::Open_KvdbDS(path.c_str(), opts);
-    cout<<"open db success."<<endl;
-    string get_data;
-    s=db->Get(test_key.c_str(), test_key_size, get_data);
+    KvdbDS *db2=KvdbDS::Open_KvdbDS(path.c_str(), opts);
+
+    get_data="";
+    s=db2->Get(test_key.c_str(), test_key_size, get_data);
     EXPECT_TRUE(s.ok());
 
     EXPECT_EQ(test_value,get_data);
-    get_data.clear();
 
-    delete db;
+    delete db2;
 }
 
 
