@@ -28,6 +28,9 @@ class SegmentSlice;
 
 class DataHeader {
 private:
+    //const char* key_data;
+    uint32_t key_offset;
+    uint32_t key_len;
     Kvdb_Digest key_digest;
     uint16_t data_size;
     uint32_t data_offset;
@@ -37,8 +40,16 @@ public:
     DataHeader();
     DataHeader(const Kvdb_Digest &digest, uint16_t data_size,
                uint32_t data_offset, uint32_t next_header_offset);
+    DataHeader(uint32_t key_len, uint32_t key_offset,const Kvdb_Digest &digest, uint16_t data_size,
+                   uint32_t data_offset, uint32_t next_header_offset);
     ~DataHeader();
+    /*static uint32_t SizeOfDataHeader(){
+        return sizeof(key_len)+sizeof(key_digest)+sizeof(data_size)+sizeof(data_offset)+sizeof(next_header_offset);
+    }*/
 
+    uint32_t GetKeyOffSet()const{
+        return key_offset;
+    }
     uint16_t GetDataSize() const {
         return data_size;
     }
@@ -62,6 +73,16 @@ public:
     void SetNextHeadOffset(uint32_t offset) {
         next_header_offset = offset;
     }
+
+    uint32_t GetKeyLen() {
+        return key_len;
+    }
+   /* void SetKey(const char* key) const {
+        key_data = key;
+    }*/
+   /* const char* GetKey() {
+        return key_data;
+    }*/
 
 }__attribute__((__packed__));
 
@@ -97,6 +118,12 @@ public:
     ~HashEntryOnDisk();
     HashEntryOnDisk& operator=(const HashEntryOnDisk& toBeCopied);
 
+    uint32_t GetKeyLen() {
+        return header.GetKeyLen();
+    }
+    uint32_t GetKeyOffSetInSeg() {
+        return header.GetKeyOffSet();
+    }
     uint64_t GetHeaderOffsetPhy() const {
         return header_offset.GetHeaderOffset();
     }
@@ -169,14 +196,17 @@ public:
         KVTime& GetSegTime() {
             return segTime_;
         }
+
         int32_t GetKeyNo() {
             return keyNo_;
         }
+
         void Set(KVTime seg_time, int32_t seg_key_no) {
             segTime_ = seg_time;
             keyNo_ = seg_key_no;
         }
     };
+
     HashEntry();
     HashEntry(HashEntryOnDisk& entry_ondisk, KVTime time_stamp, void* read_ptr);
     HashEntry(DataHeader& data_header, uint64_t header_offset, void* read_ptr);
@@ -188,24 +218,40 @@ public:
     uint64_t GetHeaderOffsetPhy() const {
         return entryPtr_->GetHeaderOffsetPhy();
     }
+
     uint16_t GetDataSize() const {
         return entryPtr_->GetDataSize();
     }
+
+    //add
+    uint32_t GetKeySize() const {
+        return entryPtr_->GetKeyLen();
+    }
+
+    uint32_t GetKeyOffsetInSeg() {
+        return entryPtr_->GetKeyOffSetInSeg();
+    }
+
     uint32_t GetDataOffsetInSeg() const {
         return entryPtr_->GetDataOffsetInSeg();
     }
+
     uint32_t GetNextHeadOffsetInSeg() const {
         return entryPtr_->GetNextHeadOffsetInSeg();
     }
+
     void* GetReadCachePtr() const {
         return cachePtr_;
     }
+
     Kvdb_Digest GetKeyDigest() const {
         return entryPtr_->GetKeyDigest();
     }
+
     HashEntryOnDisk& GetEntryOnDisk() {
         return *entryPtr_;
     }
+
     LogicStamp* GetLogicStamp() {
         return stampPtr_;
     }
@@ -217,7 +263,6 @@ private:
     HashEntryOnDisk *entryPtr_;
     LogicStamp *stampPtr_;
     void* cachePtr_;
-
 };
 
 class IndexManager {
@@ -243,6 +288,7 @@ public:
     uint32_t GetHashTableSize() const {
         return htSize_;
     }
+
     uint64_t GetDataTheorySize() const ;
     uint32_t GetKeyCounter() const ;
 
@@ -252,10 +298,29 @@ public:
 
     bool IsSameInMem(HashEntry entry);
 
-private:
-    void createListIfNotExist(uint32_t index);
+    void iterator();
+    void initializeHashTable();
+    HashEntry* Seek(const char* key);
+    HashEntry* SeekToFirst();
+    HashEntry* Next();
+    HashEntry* SeekToLast();
+    HashEntry* Prev();
 
-    bool initHashTable(uint32_t size);
+public:
+    struct HashtableSlot {
+        LinkedList<HashEntry> *entryList_;
+        std::mutex slotMtx_;
+        HashtableSlot() {
+            entryList_ = new LinkedList<HashEntry> ;
+        }
+        ~HashtableSlot() {
+            delete entryList_;
+        }
+    };
+
+private:
+
+    void initHashTable(uint32_t size);
     void destroyHashTable();
 
     bool rebuildHashTable(uint64_t offset);
@@ -268,8 +333,9 @@ private:
     bool persistTime(uint64_t offset);
     bool writeDataToDevice(void* data, uint64_t length, uint64_t offset);
 
-    LinkedList<HashEntry>** hashtable_;
+    HashtableSlot *hashtable_;
     uint32_t htSize_;
+    int32_t index_;
     uint32_t keyCounter_;
     uint64_t dataTheorySize_;
     uint64_t startOff_;

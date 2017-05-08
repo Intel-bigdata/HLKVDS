@@ -66,7 +66,7 @@ if    (cv_.wait_for(lck, std::chrono::milliseconds(msec), [this] {return !dataQu
 
             private:
                 std::queue<QueueType> dataQueue_;
-                std::mutex mtx_;
+                mutable std::mutex mtx_;
                 std::condition_variable cv_;
 
             };
