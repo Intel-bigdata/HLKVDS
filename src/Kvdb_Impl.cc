@@ -40,7 +40,7 @@ KvdbDS* KvdbDS::Create_KvdbDS(const char* filename, Options opts) {
     if (r < 0) {
         delete ds;
         return NULL;
-    } __DEBUG("Open device success.");
+    }__DEBUG("Open device success.");
 
     device_capacity = ds->bdev_->GetDeviceCapacity();
     //device capacity should be larger than size of (sb+index)
@@ -72,7 +72,7 @@ KvdbDS* KvdbDS::Create_KvdbDS(const char* filename, Options opts) {
     if (!ds->idxMgr_->InitIndexForCreateDB(db_sb_size, hash_table_size)) {
         delete ds;
         return NULL;
-    } __DEBUG("Init index region success.");
+    }__DEBUG("Init index region success.");
 
     //Init Segment region
     uint64_t seg_total_size = device_capacity - db_sb_size - db_index_size;
@@ -241,7 +241,6 @@ bool KvdbDS::readMetaDataFromDevice() {
             sbMgr_->GetDataRegionSize(),
             (sbMgr_->GetSbSize() + sbMgr_->GetIndexSize() + sbMgr_->GetSegTableSize() + sbMgr_->GetDataRegionSize()),
             sbMgr_->GetDeviceCapacity(), sbMgr_->GetCurSegmentId(), sbMgr_->GetDataTheorySize());
-
     return true;
 }
 
@@ -382,7 +381,7 @@ Status KvdbDS::Get(const char* key, uint32_t key_len, string &data) {
 }
 
 Status KvdbDS::insertKey(KVSlice& slice) {
-    Request *req = new Request(slice);
+    IRequest *req = new Request(slice);
     reqQue_.Enqueue_Notify(req);
     req->Wait();
     Status s = updateMeta(req);
@@ -390,14 +389,64 @@ Status KvdbDS::insertKey(KVSlice& slice) {
     return s;
 }
 
-Status KvdbDS::updateMeta(Request *req) {
+Status WriteBatch::del(const char* key, uint32_t key_len) {
+    return put(key, key_len, NULL, 0);
+}
+
+Status WriteBatch::put(const char *key, uint32_t key_len, const char *data,
+                       uint16_t value_len) {
+    if (key == NULL || key[0] == '\0') {
+        return Status::InvalidArgument("Key is null or empty.");
+    }
+    KVSlice *slice = new KVSlice(key, key_len, data, value_len);
+    req_->addSlice(*slice);
+
+    return Status::OK();
+}
+Status KvdbDS::Write(WriteBatch *batch) {
+    IRequest *req = batch->getRequest();
+
+    uint32_t total;
+    std::list<KVSlice *> *slices = &req->getSlices();
+    if (slices->size() == 0) {
+        return Status::OK();
+    }
+    for (list<KVSlice *>::iterator iter = slices->begin(); iter
+            != slices->end(); iter++) {
+        total += (*iter)->GetDataLen() + (*iter)->GetKeyLen()
+                + IndexManager::SizeOfDataHeader();
+    }
+    if (total > segMgr_->GetMaxValueLength()) {
+        return Status::NotSupported(
+                                    "Batch data length cann't be longer than max segment size");
+    }
+
+    reqQue_.Enqueue_Notify(req);
+    req->Wait();
+    Status s = updateMeta(req);
+    delete req;
+    return s;
+}
+
+Status KvdbDS::updateMeta(IRequest *req) {
     bool res = req->GetWriteStat();
     // update index
     if (!res) {
         return Status::Aborted("Write failed");
     }
-    KVSlice *slice = &req->GetSlice();
-    res = idxMgr_->UpdateIndex(slice);
+    int reqType = req->getType();
+
+    if (1 == reqType) {
+        std::list<KVSlice *> *slices = &req->getSlices();
+        for (list<KVSlice *>::iterator iter = slices->begin(); iter
+                != slices->end(); iter++) {
+            KVSlice *slice = (*iter);
+            res = idxMgr_->UpdateIndex(slice);
+        }
+    } else {
+        KVSlice *slice = &req->GetSlice();
+        res = idxMgr_->UpdateIndex(slice);
+    }
     // minus the segment delete counter
     SegmentSlice *seg = req->GetSeg();
     if (!seg->CommitedAndGetNum()) {
@@ -430,11 +479,136 @@ Status KvdbDS::readData(KVSlice &slice, string &data) {
     return Status::OK();
 }
 
+KvdbIter* KvdbDS::newIterator(KvdbDS* ds) {
+    return new KvdbIter(ds->idxMgr_, ds->segMgr_, ds->bdev_);
+}
+
+bool KvdbIter::Valid() {
+    return valid_;
+}
+
+Status KvdbIter::SeekToFirst() {
+    hashEntry_ = idxMgr->SeekToFirst();
+    if (NULL != hashEntry_) {
+        valid_ = true;
+    } else {
+        valid_ = false;
+    }
+
+    status_ = Status::OK();
+    return status_;
+}
+
+Status KvdbIter::SeekToLast() {
+
+    hashEntry_ = idxMgr->SeekToLast();
+    if (NULL != hashEntry_) {
+        valid_ = true;
+    } else {
+        valid_ = false;
+    }
+
+    status_ = Status::OK();
+    return status_;
+
+}
+
+Status KvdbIter::Next() {
+
+    hashEntry_ = idxMgr->Next();
+    if (NULL != hashEntry_) {
+        valid_ = true;
+    } else {
+        valid_ = false;
+    }
+
+    status_ = Status::OK();
+    return status_;
+
+}
+Status KvdbIter::Prev() {
+
+    hashEntry_ = idxMgr->Prev();
+    if (NULL != hashEntry_) {
+        valid_ = true;
+    } else {
+        valid_ = false;
+    }
+
+    status_ = Status::OK();
+    return status_;
+}
+
+/*Status KvdbIter::Seek(const char* key) {
+ hashEntry_ = idxMgr->Seek(key);
+ if (NULL != hashEntry_) {
+ valid_ = true;
+ } else {
+ valid_ = false;
+ }
+
+ status_ = Status::OK();
+ return status_;
+ }*/
+
+Status KvdbIter::Seek(const char* prefix) {
+    status_ = Status::OK();
+    HashEntry *temp=NULL;
+    while ((temp = idxMgr->Next()) != NULL) {
+        valid_=true;
+        hashEntry_=temp;
+        string key=Key();
+        if (strcmp(prefix, key.c_str())==0) {
+            //TODO
+            return status_;
+        }
+    }
+    hashEntry_=NULL;
+    return status_;
+}
+
+string KvdbIter::Key() {
+    if (valid_) {
+        uint64_t key_offset = 0;
+        if (!segMgr->ComputeKeyOffsetPhyFromEntry(hashEntry_, key_offset)) {
+            return NULL;
+        }
+        //cout<<"key offset:"<<key_offset<<endl;
+        uint16_t key_len = hashEntry_->GetKeySize();
+        char *mdata = new char[key_len];
+        if (bdev->pRead(mdata, key_len, key_offset) != (ssize_t) key_len) {
+            __ERROR("Could not read data at position");
+            delete[] mdata;
+            return NULL;
+        }
+
+        return string(mdata, key_len);
+    }
+}
+string KvdbIter::Value() {
+    if (valid_) {
+        uint64_t data_offset = 0;
+        if (!segMgr->ComputeDataOffsetPhyFromEntry(hashEntry_, data_offset)) {
+            return NULL;
+        }
+        //cout<<"data offset:"<<data_offset<<endl;
+        uint16_t data_len = hashEntry_->GetDataSize();
+        char *mdata = new char[data_len];
+        if (bdev->pRead(mdata, data_len, data_offset) != (ssize_t) data_len) {
+            __ERROR("Could not read data at position");
+            delete[] mdata;
+            return NULL;
+        }
+
+        return string(mdata, data_len);
+    }
+}
+
 void KvdbDS::ReqMergeThdEntry() {
     __DEBUG("Requests Merge thread start!!");
     std::unique_lock < std::mutex > lck_seg(segMtx_, std::defer_lock);
     while (!reqMergeT_stop_.load()) {
-        Request *req = reqQue_.Wait_Dequeue();
+        IRequest *req = reqQue_.Wait_Dequeue();
         if (req) {
             lck_seg.lock();
             if (seg_->TryPut(req)) {
@@ -449,7 +623,7 @@ void KvdbDS::ReqMergeThdEntry() {
             lck_seg.unlock();
         }
 
-    } __DEBUG("Requests Merge thread stop!!");
+    }__DEBUG("Requests Merge thread stop!!");
 }
 
 void KvdbDS::SegWriteThdEntry() {
@@ -480,7 +654,7 @@ void KvdbDS::SegWriteThdEntry() {
                     seg_id, res==true? "Success":"Failed");
 
         }
-    } __DEBUG("Segment write thread stop!!");
+    }__DEBUG("Segment write thread stop!!");
 }
 
 void KvdbDS::SegTimeoutThdEntry() {
@@ -498,7 +672,7 @@ void KvdbDS::SegTimeoutThdEntry() {
         lck.unlock();
 
         usleep(options_.expired_time);
-    } __DEBUG("Segment Timeout thread stop!!");
+    }__DEBUG("Segment Timeout thread stop!!");
 }
 
 void KvdbDS::SegReaperThdEntry() {
@@ -511,7 +685,7 @@ void KvdbDS::SegReaperThdEntry() {
             __DEBUG("Segment reaper delete seg_id = %d", seg->GetSegId());
             delete seg;
         }
-    } __DEBUG("Segment write thread stop!!");
+    }__DEBUG("Segment write thread stop!!");
 }
 
 void KvdbDS::Do_GC() {
@@ -524,7 +698,7 @@ void KvdbDS::GCThdEntry() {
     while (!gcT_stop_) {
         gcMgr_->BackGC();
         usleep(1000000);
-    } __DEBUG("GC thread stop!!");
+    }__DEBUG("GC thread stop!!");
 }
 }
 

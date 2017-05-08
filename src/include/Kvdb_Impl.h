@@ -23,10 +23,73 @@
 #include "SegmentManager.h"
 #include "GcManager.h"
 #include "WorkQueue.h"
+#include "WriteBatchRequest.h"
 
 namespace kvdb {
 
+class WriteBatch {
+public:
+    WriteBatch() {
+        req_ = new WriteBatchRequest();
+    }
+    Status put(const char *key, uint32_t key_len, const char *data,
+               uint16_t len);
+    Status del(const char *key, uint32_t key_len);
+    Status Get(const char* key, uint32_t key_len, string &data);
+
+    IRequest* getRequest() {
+        return req_;
+    }
+
+private:
+    IRequest *req_;
+
+};
+
+class KvdbIter {
+public:
+    KvdbIter(IndexManager* idxMgr, SegmentManager* segMgr, BlockDevice* bdev) :
+        idxMgr(idxMgr), segMgr(segMgr), bdev(bdev), valid_(false),
+                hashEntry_(new HashEntry()) {
+        idxMgr->iterator();
+    }
+    virtual ~KvdbIter() {
+        valid_ = false;
+    }
+
+    bool Valid();
+    Status GetStatus() {
+        return status_;
+    }
+    Status SeekToFirst();
+
+    Status SeekToLast();
+    Status Seek(const char* target);
+
+    string Key();
+    string Value();
+    Status Next();
+    Status Prev();
+
+private:
+    static bool IsPrefix(std::string const& lhs, std::string const& rhs) {
+        return std::equal(lhs.begin(),
+                          lhs.begin() + std::min(lhs.size(), rhs.size()),
+                          rhs.begin());
+    }
+
+private:
+    //KvdbDS* ds_;
+    Status status_;
+    bool valid_;
+    HashEntry *hashEntry_;
+    IndexManager* idxMgr;
+    SegmentManager* segMgr;
+    BlockDevice* bdev;
+};
+
 class KvdbDS {
+
 public:
     static KvdbDS* Create_KvdbDS(const char* filename, Options opts);
     static KvdbDS* Open_KvdbDS(const char* filename, Options opts);
@@ -35,6 +98,7 @@ public:
                   uint16_t length);
     Status Get(const char* key, uint32_t key_len, string &data);
     Status Delete(const char* key, uint32_t key_len);
+    Status Write(WriteBatch *batch);
 
     void Do_GC();
     void ClearReadCache() {
@@ -52,6 +116,8 @@ public:
         return segReaperQue_.length();
     }
 
+    KvdbIter* newIterator(KvdbDS* ds);
+
     virtual ~KvdbDS();
 
 private:
@@ -64,7 +130,7 @@ private:
     void stopThds();
 
     Status insertKey(KVSlice& slice);
-    Status updateMeta(Request *req);
+    Status updateMeta(IRequest *req);
 
     Status readData(KVSlice& slice, string &data);
 
@@ -84,7 +150,7 @@ private:
 private:
     std::thread reqMergeT_;
     std::atomic<bool> reqMergeT_stop_;
-    WorkQueue<Request*> reqQue_;
+    WorkQueue<IRequest*> reqQue_;
     void ReqMergeThdEntry();
 
     // Seg Write to device thread

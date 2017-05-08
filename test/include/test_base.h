@@ -9,7 +9,7 @@
 
 #include "Kvdb_Impl.h"
 #include "hyperds/Options.h"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include <string>
 
 #define FILENAME  "/dev/loop2"
