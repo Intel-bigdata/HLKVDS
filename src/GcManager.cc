@@ -63,11 +63,12 @@ bool GcSegment::TryPut(KVSlice* slice) {
 
 void GcSegment::Put(KVSlice* slice) {
     if (slice->IsAlignedData()) {
-        headPos_ += IndexManager::SizeOfDataHeader();
+        headPos_ += IndexManager::SizeOfDataHeader() + slice->GetKeyLen();
         tailPos_ -= ALIGNED_SIZE;
         keyAlignedNum_++;
     } else {
-        headPos_ += IndexManager::SizeOfDataHeader() + slice->GetDataLen();
+        headPos_ += IndexManager::SizeOfDataHeader() + slice->GetDataLen()
+                + slice->GetKeyLen();
     }
     keyNum_++;
     sliceList_.push_back(slice);
@@ -88,12 +89,17 @@ void GcSegment::UpdateToIndex() {
             != sliceList_.end(); iter++) {
         KVSlice *slice = *iter;
         idxMgr_->UpdateIndex(slice);
-    } __DEBUG("UpdateToIndex Success!");
+    }__DEBUG("UpdateToIndex Success!");
 }
 
 bool GcSegment::isCanFit(KVSlice* slice) const {
+    /* uint32_t freeSize = tailPos_ - headPos_;
+     uint32_t needSize = slice->GetDataLen() + IndexManager::SizeOfDataHeader()+slice->GetKeyLen();
+     return freeSize > needSize;*/
     uint32_t freeSize = tailPos_ - headPos_;
-    uint32_t needSize = slice->GetDataLen() + IndexManager::SizeOfDataHeader();
+    uint32_t needSize = slice->GetDataLen() + IndexManager::SizeOfDataHeader()
+            + slice->GetKeyLen();
+
     return freeSize > needSize;
 }
 
@@ -105,29 +111,71 @@ void GcSegment::fillSlice() {
 
         KVSlice *slice = *iter;
         slice->SetSegId(segId_);
+        /*if (slice->IsAlignedData()) {
+         uint32_t data_offset = tail_pos - ALIGNED_SIZE;
+         uint32_t next_offset = head_pos + IndexManager::SizeOfDataHeader();
+
+         DataHeader data_header(slice->GetDigest(), slice->GetDataLen(),
+         data_offset, next_offset);
+
+         uint64_t seg_offset = 0;
+         segMgr_->ComputeSegOffsetFromId(segId_, seg_offset);
+         uint64_t header_offset = seg_offset + head_pos;
+
+         HashEntry hash_entry(data_header, header_offset, NULL);
+         slice->SetHashEntry(&hash_entry);
+
+         head_pos += IndexManager::SizeOfDataHeader();
+         tail_pos -= ALIGNED_SIZE;
+         __DEBUG("SegmentSlice: key=%s, data_offset=%u, header_offset=%lu, seg_id=%u, head_pos=%u, tail_pos = %u", slice->GetKey(), data_offset, header_offset, segId_, head_pos, tail_pos);
+         } else {
+         uint32_t data_offset = head_pos + IndexManager::SizeOfDataHeader();
+         uint32_t next_offset = head_pos + IndexManager::SizeOfDataHeader()
+         + slice->GetDataLen();
+
+         DataHeader data_header(slice->GetDigest(), slice->GetDataLen(),
+         data_offset, next_offset);
+
+         uint64_t seg_offset = 0;
+         segMgr_->ComputeSegOffsetFromId(segId_, seg_offset);
+         uint64_t header_offset = seg_offset + head_pos;
+
+         HashEntry hash_entry(data_header, header_offset, NULL);
+         slice->SetHashEntry(&hash_entry);
+
+         head_pos += IndexManager::SizeOfDataHeader() + slice->GetDataLen();
+         __DEBUG("SegmentSlice: key=%s, data_offset=%u, header_offset=%lu, seg_id=%u, head_pos=%u, tail_pos = %u", slice->GetKey(), data_offset, header_offset, segId_, head_pos, tail_pos);
+
+         }*/
+
         if (slice->IsAlignedData()) {
             uint32_t data_offset = tail_pos - ALIGNED_SIZE;
-            uint32_t next_offset = head_pos + IndexManager::SizeOfDataHeader();
-
-            DataHeader data_header(slice->GetDigest(), slice->GetDataLen(),
-                                   data_offset, next_offset);
-
-            uint64_t seg_offset = 0;
-            segMgr_->ComputeSegOffsetFromId(segId_, seg_offset);
-            uint64_t header_offset = seg_offset + head_pos;
-
-            HashEntry hash_entry(data_header, header_offset, NULL);
-            slice->SetHashEntry(&hash_entry);
-
-            head_pos += IndexManager::SizeOfDataHeader();
-            tail_pos -= ALIGNED_SIZE;
-            __DEBUG("SegmentSlice: key=%s, data_offset=%u, header_offset=%lu, seg_id=%u, head_pos=%u, tail_pos = %u", slice->GetKey(), data_offset, header_offset, segId_, head_pos, tail_pos);
-        } else {
-            uint32_t data_offset = head_pos + IndexManager::SizeOfDataHeader();
+            uint32_t key_offset = head_pos + IndexManager::SizeOfDataHeader();
             uint32_t next_offset = head_pos + IndexManager::SizeOfDataHeader()
-                    + slice->GetDataLen();
+                    + slice->GetKeyLen();
 
-            DataHeader data_header(slice->GetDigest(), slice->GetDataLen(),
+            DataHeader data_header(slice->GetKeyLen(), key_offset,
+                                   slice->GetDigest(), slice->GetDataLen(),
+                                   data_offset, next_offset);
+            uint64_t seg_offset = 0;
+            segMgr_->ComputeSegOffsetFromId(segId_, seg_offset);
+            uint64_t header_offset = seg_offset + head_pos;
+
+            HashEntry hash_entry(data_header, header_offset, NULL);
+            slice->SetHashEntry(&hash_entry);
+
+            head_pos += IndexManager::SizeOfDataHeader() + slice->GetKeyLen();
+            tail_pos -= ALIGNED_SIZE;
+            __DEBUG("SegmentSlice: key=%s,key_offset=%u, data_offset=%u, header_offset=%lu, seg_id=%u, head_pos=%u, tail_pos = %u", slice->GetKey(), key_offset,data_offset, header_offset, segId_, head_pos, tail_pos);
+        } else {
+            uint32_t key_offset = head_pos + IndexManager::SizeOfDataHeader();
+            uint32_t data_offset = head_pos + IndexManager::SizeOfDataHeader()
+                    + slice->GetKeyLen();
+            uint32_t next_offset = head_pos + IndexManager::SizeOfDataHeader()
+                    + slice->GetKeyLen() + slice->GetDataLen();
+
+            DataHeader data_header(slice->GetKeyLen(), key_offset,
+                                   slice->GetDigest(), slice->GetDataLen(),
                                    data_offset, next_offset);
 
             uint64_t seg_offset = 0;
@@ -137,8 +185,9 @@ void GcSegment::fillSlice() {
             HashEntry hash_entry(data_header, header_offset, NULL);
             slice->SetHashEntry(&hash_entry);
 
-            head_pos += IndexManager::SizeOfDataHeader() + slice->GetDataLen();
-            __DEBUG("SegmentSlice: key=%s, data_offset=%u, header_offset=%lu, seg_id=%u, head_pos=%u, tail_pos = %u", slice->GetKey(), data_offset, header_offset, segId_, head_pos, tail_pos);
+            head_pos += IndexManager::SizeOfDataHeader() + slice->GetKeyLen()
+                    + slice->GetDataLen();
+            __DEBUG("SegmentSlice: key=%s,key_offset=%u, data_offset=%u, header_offset=%lu, seg_id=%u, head_pos=%u, tail_pos = %u", slice->GetKey(), key_offset,data_offset, header_offset, segId_, head_pos, tail_pos);
 
         }
     }
@@ -182,6 +231,12 @@ void GcSegment::copyToData() {
         memcpy(&(dataBuf_[offset_begin]), header,
                IndexManager::SizeOfDataHeader());
         offset_begin += IndexManager::SizeOfDataHeader();
+
+        //write key here
+        char *key = (char*) slice->GetKey();
+        uint32_t key_len = slice->GetKeyLen();
+        memcpy(&(dataBuf_[offset_begin]), key, key_len);
+        offset_begin += key_len;
 
         if (slice->IsAlignedData()) {
             offset_end -= data_len;
@@ -272,8 +327,8 @@ void GcManager::BackGC() {
             waste_rate = 1 - ((double) theory_seg_num / (double) used_seg_num);
             __DEBUG("done once backgroud GC, total free %u segments, data_theory_size = %lu, theory_seg_num = %u, used_seg_num = %u, seg_size = %u, waste_rate is %f",total_free, data_theory_size, theory_seg_num, used_seg_num, seg_size, waste_rate);
             lck_gc.unlock();
-        } __DEBUG("waste_rate lower than the GC_LOWER_LEVEL, end Background GC! waste_rate = %f", waste_rate);
-    } __DEBUG("Finsh do Background GC! waste_rate is %f", waste_rate);
+        }__DEBUG("waste_rate lower than the GC_LOWER_LEVEL, end Background GC! waste_rate = %f", waste_rate);
+    }__DEBUG("Finsh do Background GC! waste_rate is %f", waste_rate);
 }
 
 void GcManager::FullGC() {
@@ -312,7 +367,7 @@ void GcManager::FullGC() {
         __DEBUG("complete once merge, and this merge free %u segments, theory_size is %lu Byte, used Segments total is %u, occur space is %lu, total seg is %u, free seg is %u", total_free, theory_size, used_seg_num, used_size, seg_num, free_seg_num);
         cands_map.clear();
         lck_gc.unlock();
-    } __DEBUG("End do Full GC! total free %u segments", free_after - free_before);
+    }__DEBUG("End do Full GC! total free %u segments", free_after - free_before);
 }
 
 uint32_t GcManager::doMerge(std::multimap<uint32_t, uint32_t> &cands_map) {
@@ -459,7 +514,17 @@ void GcManager::loadSegKV(list<KVSlice*> &slice_list, uint32_t num_keys,
                 char* data = new char[data_len];
                 memcpy(data, &dataBuf_[data_offset], data_len);
 
+                //TODO get key string here
+                uint32_t key_len=header.GetKeyLen();
+                uint32_t key_offset=header.GetKeyOffSet();
+                char* key=new char[key_len];
+                memcpy(key,&dataBuf_[key_offset],key_len);
+                //__DEBUG("load key:%s",key);
+
                 KVSlice *slice = new KVSlice(&digest, data, data_len);
+                slice->SetKey(key);
+                slice->SetKeyLen(key_len);
+
                 slice_list.push_back(slice);
 
                 __DEBUG("the slice key_digest = %s, value = %s, seg_offset = %ld, head_offset = %d is valid, need to write", digest.GetDigest(), data, phy_offset, head_offset);

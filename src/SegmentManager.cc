@@ -178,6 +178,17 @@ bool SegmentManager::ComputeDataOffsetPhyFromEntry(HashEntry* entry,
     return true;
 }
 
+bool SegmentManager::ComputeKeyOffsetPhyFromEntry(HashEntry* entry,
+                                                   uint64_t& key_offset) {
+    uint64_t seg_offset = 0;
+    uint64_t header_offset = entry->GetHeaderOffsetPhy();
+    if (!ComputeSegOffsetFromOffset(header_offset, seg_offset)) {
+        return false;
+    }
+    key_offset = seg_offset + entry->GetKeyOffsetInSeg();
+    return true;
+}
+
 bool SegmentManager::Alloc(uint32_t& seg_id) {
     std::unique_lock < std::mutex > l(mtx_);
     if (freedCounter_ <= SEG_RESERVED_FOR_GC) {
@@ -268,7 +279,7 @@ void SegmentManager::ModifyDeathEntry(HashEntry &entry) {
 
     uint16_t data_size = entry.GetDataSize();
     uint32_t death_size = (uint32_t) data_size
-            + (uint32_t) IndexManager::SizeOfDataHeader();
+            + (uint32_t) IndexManager::SizeOfDataHeader();//TODO
 
     std::lock_guard < std::mutex > l(mtx_);
     segTable_[seg_id].death_size += death_size;

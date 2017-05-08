@@ -18,9 +18,10 @@ class Node {
 public:
     T data;
     Node<T>* next;
+    Node<T>* prev;
 
-    Node(T value, Node<T>* nd) :
-        data(value), next(nd) {
+    Node(T value, Node<T>* nd1,Node<T>* nd2) :
+        data(value), next(nd1),prev(nd2) {
     }
     ;
 };
@@ -34,6 +35,7 @@ public:
     LinkedList(const LinkedList<T> &);
     ~LinkedList();
     LinkedList& operator=(const LinkedList<T> &);
+    void iterator();
 
     bool search(T& toBeSearched);
     //if put T is existed, return false
@@ -46,8 +48,16 @@ public:
         return size_;
     }
 
+    Node<T>* GetHead() {
+        return head_;
+    }
+    Node<T>* GetLast();
+    void SetLast();
+    Node<T>* GetNext();
+    Node<T>* GetPrev();
 private:
     Node<T>* head_;
+    Node<T>* cur_;
     int size_;
 
     void copyHelper(const LinkedList &);
@@ -81,13 +91,13 @@ void LinkedList<T>::copyHelper(const LinkedList<T> &toBeCopied) {
         size_ = 0;
     } else {
         size_ = toBeCopied.size_;
-        Node<T>* copyNode = new Node<T> (toBeCopied.head_->data, NULL);
+        Node<T>* copyNode = new Node<T> (toBeCopied.head_->data, NULL,NULL);
         head_ = copyNode;
 
         Node<T>* ptr = toBeCopied.head_;
         ptr = ptr->next;
         while (ptr != NULL) {
-            copyNode->next = new Node<T> (ptr->data, NULL);
+            copyNode->next = new Node<T> (ptr->data, NULL,copyNode);
             copyNode = copyNode->next;
             ptr = ptr->next;
         }
@@ -120,10 +130,62 @@ bool LinkedList<T>::search(T& toBeSearched) {
 }
 
 template<typename T>
+void LinkedList<T>::iterator() {
+    cur_ = NULL;
+}
+
+template<typename T>
+Node<T>* LinkedList<T>::GetNext() {
+    if (NULL == cur_) {
+        cur_ = head_;
+    } else {
+        if (NULL != cur_->next) {
+            cur_ = cur_->next;
+        } else {
+            return NULL;
+        }
+    }
+    return cur_;
+}
+
+template<typename T>
+Node<T>* LinkedList<T>::GetPrev() {
+    if (NULL == cur_ ) {
+        cur_ = GetLast();
+    } else {
+        if (NULL != cur_->prev) {
+            cur_ = cur_->prev;
+        } else {
+            return NULL;
+        }
+    }
+    return cur_;
+}
+template<typename T>
+Node<T>* LinkedList<T>::GetLast() {
+
+        Node<T>* curNode = head_;
+        Node<T>* preNode;
+        while (curNode != NULL) {
+            preNode=curNode;
+            curNode = curNode->next;
+        }
+
+        return preNode;
+}
+
+/*
+template<typename T>
+void LinkedList<T>::SetLast(){
+    cur_=GetLast();
+}
+*/
+
+template<typename T>
 bool LinkedList<T>::put(T& toBePuted) {
     bool is_new = true;
 
-    Node<T>* newNode = new Node<T> (toBePuted, NULL);
+    Node<T>* newNode = new Node<T> (toBePuted, NULL,NULL);
     if (head_ == NULL) {
         head_ = newNode;
         size_++;
@@ -143,6 +205,7 @@ bool LinkedList<T>::put(T& toBePuted) {
         if (is_new) {
             curNode = newNode;
             preNode->next = curNode;
+            curNode->prev = preNode;
             size_++;
         }
     }
@@ -168,6 +231,7 @@ bool LinkedList<T>::remove(T& toBeRemoved) {
         while (curNode != NULL) {
             if (curNode->data == toBeRemoved) {
                 preNode->next = curNode->next;
+                curNode->next->prev = preNode;
                 delete curNode;
                 size_--;
                 flag = true;
