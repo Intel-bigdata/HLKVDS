@@ -20,7 +20,6 @@
 #include "GcManager.h"
 #include "WorkQueue.h"
 #include "Segment.h"
-
 namespace hlkvds {
 
 class KVDS {
@@ -80,6 +79,7 @@ private:
     SegForReq *seg_;
     std::mutex segMtx_;
     Options options_;
+
 
     // Request Merge thread
 private:

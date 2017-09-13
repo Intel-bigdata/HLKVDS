@@ -5,6 +5,11 @@
 
 namespace hlkvds {
 struct Options {
+    //use in readCache
+    bool disable_cache;
+    int cache_size;
+    int cache_policy;
+    int slru_partition;
     //use in Create DB
     int segment_size;
     int hashtable_size;
@@ -16,7 +21,6 @@ struct Options {
     double seg_full_rate;
     double gc_upper_level;
     double gc_lower_level;
-
     Options();
 };
 } // namespace hlkvds
