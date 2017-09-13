@@ -9,12 +9,12 @@ INCLUDES = -I ${SRC_DIR}/include \
 		   -I ${TEST_DIR}/include
 GTEST_INCLUDES = -I ${TEST_DIR}/include/gtest ${TEST_DIR}/lib/libgmock.a
 
-LIBS = -pthread
+LIBS = -pthread -lboost_thread -lboost_system 
 
 CC = gcc
 CXX = g++
 C_FLAGS = -Wall -fPIC ${OPT}
-CXX_FLAGS = --std=c++11 -Wall -fPIC ${OPT}
+CXX_FLAGS = --std=c++11 -Wall -fPIC ${OPT} 
 
 
 CORE_C_SRC = $(wildcard ${SRC_DIR}/*.c)
@@ -33,7 +33,7 @@ TOOLS_LIST = \
 		${TOOLS_DIR}/Benchmark \
 		${TOOLS_DIR}/LoadDB
 
-SHARED_LIB = ${SRC_DIR}/libhlkvds.so
+SHARED_LIB = ${SRC_DIR}/libhlkvds.so 
 
 TESTS_LIST =  ${TEST_DIR}/test_block_manager \
 	    ${TEST_DIR}/test_index_manager \
@@ -43,7 +43,8 @@ TESTS_LIST =  ${TEST_DIR}/test_block_manager \
 	    ${TEST_DIR}/test_db \
 	    ${TEST_DIR}/test_status\
 		${TEST_DIR}/test_batch\
-		${TEST_DIR}/test_iterator
+		${TEST_DIR}/test_iterator\
+		${TEST_DIR}/test_cache
 
 PROGNAME := ${TOOLS_LIST} ${SHARED_LIB}
 
@@ -96,7 +97,8 @@ ${TEST_DIR}/test_batch: ${TEST_DIR}/test_batch.cc ${COMMON_OBJECTS} $(TEST_OBJEC
 	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
 ${TEST_DIR}/test_iterator: ${TEST_DIR}/test_iterator.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
 	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
-
+${TEST_DIR}/test_cache: ${TEST_DIR}/test_cache.cc ${COMMON_OBJECTS} $(TEST_OBJECTS)
+	${CXX} ${CXX_FLAGS} ${INCLUDES} $^ -o $@ ${LIBS} ${GTEST_INCLUDES}
 .PHONY : clean
 clean:
 	rm -fr $(COMMON_OBJECTS) $(TEST_CXX_OBJ)

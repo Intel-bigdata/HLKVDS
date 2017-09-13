@@ -10,7 +10,9 @@ public:
         code_(kOk), state_(nullptr) {
     }
     ~Status() {
-        delete state_;
+	if(!state_){
+            delete[] state_;
+	}
     }
 
     enum Code {
@@ -62,6 +64,9 @@ public:
 
     bool ok() const {
         return code() == kOk;
+    }
+    bool notfound() const {
+        return code() == kNotFound;
     }
     std::string ToString() const;
 private:
