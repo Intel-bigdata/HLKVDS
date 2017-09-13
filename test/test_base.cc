@@ -9,6 +9,6 @@ KVDS* TestBase::Create_DB(int db_size) {
     opts.hashtable_size = ht_size;
     opts.segment_size = segment_size;
     opts.gc_upper_level = 0.7;
-
+    opts.disable_cache = 1;
     return KVDS::Create_KVDS(FILENAME, opts);
 }

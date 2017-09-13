@@ -336,7 +336,7 @@ KVDS::~KVDS() {
 KVDS::KVDS(const string& filename, Options opts) :
     fileName_(filename), seg_(NULL), options_(opts), reqMergeT_stop_(false),
             segWriteT_stop_(false), segTimeoutT_stop_(false),
-            segReaperT_stop_(false), gcT_stop_(false) {
+            segReaperT_stop_(false), gcT_stop_(false){
     bdev_ = BlockDevice::CreateDevice();
     sbMgr_ = new SuperBlockManager(bdev_, options_);
     segMgr_ = new SegmentManager(bdev_, sbMgr_, options_);
@@ -358,7 +358,6 @@ Status KVDS::Insert(const char* key, uint32_t key_len, const char* data,
     }
 
     KVSlice slice(key, key_len, data, length);
-
     return insertKey(slice);
 
 }
@@ -375,14 +374,13 @@ Status KVDS::Get(const char* key, uint32_t key_len, string &data) {
 
     KVSlice slice(key, key_len, NULL, 0);
 
+
     res = idxMgr_->GetHashEntry(&slice);
     if (!res) {
         //The key is not exist
         return Status::NotFound("Key is not found.");
     }
-
     return readData(slice, data);
-
 }
 
 Status KVDS::InsertBatch(WriteBatch *batch)
@@ -414,7 +412,6 @@ Status KVDS::InsertBatch(WriteBatch *batch)
             return Status::Aborted("Batch is too large.");
         }
     }
-
     seg->SetSegId(seg_id);
     ret = seg->WriteSegToDevice();
     if(!ret) {
@@ -459,19 +456,16 @@ Status KVDS::updateMeta(Request *req) {
 Status KVDS::readData(KVSlice &slice, string &data) {
     HashEntry *entry;
     entry = &slice.GetHashEntry();
-
     uint64_t data_offset = 0;
     if (!segMgr_->ComputeDataOffsetPhyFromEntry(entry, data_offset)) {
         return Status::Aborted("Compute data offset failed.");
     }
 
     uint16_t data_len = entry->GetDataSize();
-
     if (data_len == 0) {
         //The key is not exist
         return Status::NotFound("Key is not found.");
     }
-
     char *mdata = new char[data_len];
     if (bdev_->pRead(mdata, data_len, data_offset) != (ssize_t) data_len) {
         __ERROR("Could not read data at position");

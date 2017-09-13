@@ -76,7 +76,7 @@ TEST_F(test_operations,zerosize)
     EXPECT_TRUE(s.ok());
     string get_data;
     s=db->Get(test_key.c_str(), test_key_size, get_data);
-    EXPECT_TRUE(s.ok());
+    EXPECT_TRUE(s.notfound());
 
     EXPECT_EQ(test_value,get_data);
 
@@ -211,7 +211,7 @@ TEST_F(test_operations,deletekey)
     EXPECT_TRUE(s.ok());
     string get_data="";
     s=db->Get(test_key.c_str(), test_key_size, get_data);
-    EXPECT_TRUE(s.ok());
+    EXPECT_TRUE(s.notfound());
     EXPECT_EQ("",get_data);
     //std::cout<<"deleted key value:"<<get_data<<std::endl;
 
@@ -305,7 +305,7 @@ TEST_F(test_operations,readAfterUpdateAndDelete)
     get_data="";
     //read again, value should be empty , or the raw one ?
     s=db->Get(test_key.c_str(), test_key_size, get_data);
-    EXPECT_TRUE(s.ok());
+    EXPECT_TRUE(s.notfound());
     EXPECT_EQ("",get_data);
 }
 
