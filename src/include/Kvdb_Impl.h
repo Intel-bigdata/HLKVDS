@@ -20,6 +20,7 @@
 #include "GcManager.h"
 #include "WorkQueue.h"
 #include "Segment.h"
+#include "ReadCache.h"
 
 namespace hlkvds {
 
@@ -75,6 +76,7 @@ private:
     BlockDevice* bdev_;
     SegmentManager* segMgr_;
     GcManager* gcMgr_;
+    dslab::ReadCache* rdCache_;// readcache, rmd160, slru/lru
     string fileName_;
 
     SegForReq *seg_;

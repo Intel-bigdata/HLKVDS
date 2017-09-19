@@ -9,7 +9,7 @@ INCLUDES = -I ${SRC_DIR}/include \
 		   -I ${TEST_DIR}/include
 GTEST_INCLUDES = -I ${TEST_DIR}/include/gtest ${TEST_DIR}/lib/libgmock.a
 
-LIBS = -pthread
+LIBS = -pthread -lboost_thread -lboost_system 
 
 CC = gcc
 CXX = g++

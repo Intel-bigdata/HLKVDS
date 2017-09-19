@@ -330,6 +330,9 @@ KVDS::~KVDS() {
     delete sbMgr_;
     delete bdev_;
     delete seg_;
+    if(!options_.disable_cache){
+        delete rdCache_;
+    }
 
 }
 
@@ -342,6 +345,9 @@ KVDS::KVDS(const string& filename, Options opts) :
     segMgr_ = new SegmentManager(bdev_, sbMgr_, options_);
     idxMgr_ = new IndexManager(bdev_, sbMgr_, segMgr_, options_);
     gcMgr_ = new GcManager(bdev_, idxMgr_, segMgr_, options_);
+    if(!options_.disable_cache){
+        rdCache_ = new dslab::ReadCache(dslab::CachePolicy(options_.cache_policy), (size_t) options_.cache_size, options_.slru_partition);
+    }
 }
 
 Status KVDS::Insert(const char* key, uint32_t key_len, const char* data,
@@ -358,6 +364,10 @@ Status KVDS::Insert(const char* key, uint32_t key_len, const char* data,
     }
 
     KVSlice slice(key, key_len, data, length);
+
+    if(!options_.disable_cache && !slice.GetDataLen()){
+        rdCache_->Put(slice.GetKeyStr(),slice.GetDataStr());
+    }
 
     return insertKey(slice);
 
@@ -380,9 +390,21 @@ Status KVDS::Get(const char* key, uint32_t key_len, string &data) {
         //The key is not exist
         return Status::NotFound("Key is not found.");
     }
-
-    return readData(slice, data);
-
+    if(!options_.disable_cache){
+	if(rdCache_->Get(slice.GetKeyStr(), data)){
+            return  Status::OK();
+        }else{
+	    Status _status = readData(slice, data);
+            if(_status.ok()){
+		rdCache_->Put(slice.GetKeyStr(), data);
+	    }
+	    return _status;
+        }
+    }else{
+        Status _status = readData(slice, data);
+        cout<<_status.ToString()<<endl;
+        return _status;
+    }
 }
 
 Status KVDS::InsertBatch(WriteBatch *batch)
@@ -414,7 +436,14 @@ Status KVDS::InsertBatch(WriteBatch *batch)
             return Status::Aborted("Batch is too large.");
         }
     }
-
+    if(!options_.disable_cache){
+        for (std::list<KVSlice *>::iterator iter = batch->batch_.begin();
+            iter != batch->batch_.end(); iter++) {
+	    if(!(*iter)->GetDataLen()){//no "" should be put in to the cache
+	    	rdCache_->Put((*iter)->GetKeyStr(), (*iter)->GetDataStr());
+    	    }
+        }
+    }
     seg->SetSegId(seg_id);
     ret = seg->WriteSegToDevice();
     if(!ret) {

@@ -2,11 +2,20 @@
 #define _HLKVDS_DB_STRUCTURE_H_
 
 #include <stdint.h>
+namespace dslab{
 
+enum CachePolicy {LRU, SLRU};
+
+}
 namespace hlkvds {
 #define MAGIC_NUMBER 0xffff0001
 
 #define WITH_ITERATOR 1
+
+#define DISABLE_CACHE 0
+#define CACHE_SIZE 1024
+#define CACHE_POLICY dslab::SLRU
+#define SLRU_PARTITION 50
 
 #define RMDsize 160
 #define KEYDIGEST_INT_NUM RMDsize/(sizeof(uint32_t)*8) // RIPEMD-160/(sizeof(uint32_t)*8) 160/32
