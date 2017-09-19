@@ -169,7 +169,8 @@ SegBase::~SegBase() {
         delete segOndisk_;
     }
     if (dataBuf_) {
-        delete[] dataBuf_;
+	free(dataBuf_);
+        //delete[] dataBuf_;
     }
 }
 

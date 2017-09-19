@@ -2,7 +2,11 @@
 #define _HLKVDS_DB_STRUCTURE_H_
 
 #include <stdint.h>
+namespace dslab{
 
+enum CachePolicy {LRU, SLRU};
+
+}
 namespace hlkvds {
 #define MAGIC_NUMBER 0xffff0001
 
