@@ -38,6 +38,17 @@ private:
     DB(const DB &);
     DB& operator=(const DB &);
 
+//singleton
+    class Helper
+    {
+    public:
+        Helper();
+ 
+        ~Helper();
+    };
+    friend class Helper;
+    static Helper helper_;
+
     string fileName_;
     KVDS *kvds_;
     static DB *instance_;

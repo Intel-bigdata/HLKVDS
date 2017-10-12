@@ -2,8 +2,17 @@
 #include "Kvdb_Impl.h"
 
 namespace hlkvds {
-
 DB* DB::instance_ = NULL;
+typename DB::Helper DB::helper_;
+
+DB::Helper::Helper(){
+     instance_ = new DB();
+}
+
+DB::Helper::~Helper(){
+     delete instance_;
+     instance_ = NULL;
+}
 
 bool DB::CreateDB(string filename, Options opts) {
     KVDS* new_kvds;
@@ -18,9 +27,9 @@ bool DB::CreateDB(string filename, Options opts) {
 }
 
 bool DB::OpenDB(string filename, DB** db, Options opts) {
-    if (instance_ == NULL) {
+    /*if (instance_ == NULL) {
         instance_ = new DB();
-    }
+    }*/
 
     instance_->kvds_ = KVDS::Open_KVDS(filename.c_str(), opts);
     if (!instance_->kvds_) {
@@ -36,12 +45,12 @@ bool DB::OpenDB(string filename, DB** db, Options opts) {
 DB::DB() {
 }
 
-DB::~DB() {
+DB::~DB() {/*
     if (instance_) {
         delete instance_->kvds_;
         instance_->kvds_ = NULL;
     }
-    instance_ = NULL;
+    instance_ = NULL;*/
 }
 
 Status DB::Insert(const char* key, uint32_t key_len, const char* data,
