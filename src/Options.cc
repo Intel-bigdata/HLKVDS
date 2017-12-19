@@ -4,10 +4,13 @@
 namespace hlkvds {
 
 Options::Options() :
-	    disable_cache(DISABLE_CACHE),
-        cache_size(CACHE_SIZE),
+	disable_cache(DISABLE_CACHE),
+	is_segmented(IS_SEGMENTED),
+	is_dedup(IS_DEDUP),
         cache_policy(CACHE_POLICY),
-        slru_partition(SLRU_PARTITION),
+	hash_code(HASH_CODE),
+        cache_size(CACHE_SIZE),
+	slru_percent(SLRU_PERCENT),
 	    segment_size(SEGMENT_SIZE),
         hashtable_size(0),
         datastor_type(0),

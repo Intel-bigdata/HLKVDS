@@ -7,9 +7,12 @@ namespace hlkvds {
 struct Options {
     //use in readCache
     bool disable_cache;
-    int cache_size;
+    bool is_segmented;
+    bool is_dedup;
     int cache_policy;
-    int slru_partition;
+    int hash_code;
+    int cache_size;
+    int slru_percent;
 
     //use in Create DB
     int segment_size;

@@ -180,7 +180,9 @@ ssize_t KernelDevice::pWrite(const void* buf, size_t count, off_t offset) {
 }
 
 ssize_t KernelDevice::pRead(void* buf, size_t count, off_t offset) {
-    return pread(bufFd_, buf, count, offset);
+    ssize_t result = pread(bufFd_, buf, count, offset);
+    posix_fadvise(bufFd_, offset, count, POSIX_FADV_DONTNEED);
+    return result;
 }
 
 ssize_t KernelDevice::pWritev(const struct iovec *iov, int iovcnt, off_t offset) {

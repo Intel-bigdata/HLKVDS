@@ -14,9 +14,9 @@ class CacheMap{
 public:
     CacheMap(){}
     virtual ~CacheMap(){}
-    virtual bool Put(K key, D data, K& update_key, D& update_data, bool same = false) = 0;
-    virtual bool Get(K key, D& data) = 0;
-    virtual bool Delete(K key) = 0;
+    virtual bool Put(const K& key, const D& data, K& update_key, D& update_data, bool same = false) = 0;
+    virtual bool Get(const K& key, D& data) = 0;
+    virtual bool Delete(const K& key) = 0;
     static CacheMap *create(CachePolicy policy, size_t cache_size = 1024, size_t probation = 1024);
 
 };
@@ -24,7 +24,6 @@ public:
 
 #include "LRUMap.h"
 #include "SLRUMap.h"
-
 namespace dslab {
 
 template <class K, class D>

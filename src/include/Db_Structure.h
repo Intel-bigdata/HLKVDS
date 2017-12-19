@@ -7,9 +7,12 @@ namespace hlkvds {
 #define MAGIC_NUMBER 0xffff0001
 
 #define DISABLE_CACHE 1
-#define CACHE_SIZE 1024
-#define CACHE_POLICY 1 // 0:LRU 1:SLRU
-#define SLRU_PARTITION 50
+#define IS_SEGMENTED 0
+#define IS_DEDUP 0
+#define CACHE_POLICY 0 // 0:LRU 1:SLRU
+#define HASH_CODE 1031	
+#define CACHE_SIZE 64
+#define SLRU_PERCENT 50	
 
 #define SEG_RESERVED_FOR_GC 2
 
@@ -24,6 +27,7 @@ namespace hlkvds {
 #define GC_UPPER_LEVEL 0.3
 #define GC_LOWER_LEVEL 0.1
 
+#define FIO
 //#define DEBUG
 #define INFO
 #define WARN

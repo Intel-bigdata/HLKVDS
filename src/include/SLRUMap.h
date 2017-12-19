@@ -13,9 +13,9 @@ class SLRUMap: public CacheMap<K, D>{
 		SLRUMap(size_t size1 = 1024, size_t size2 = 1024):
 			protect(size1),probation(size2){}
 		virtual ~SLRUMap(){}
-		bool Put(K key, D data, K& ukey, D& udata, bool same = false);
-		bool Get(K key, D& data);
-		bool Delete(K key);
+		bool Put(const K& key, const D& data, K& ukey, D& udata, bool same = false);
+		bool Get(const K& key, D& data);
+		bool Delete(const K& key);
 	private:
 		LRUMap<K,D> protect;
 		LRUMap<K,D> probation;
@@ -23,7 +23,7 @@ class SLRUMap: public CacheMap<K, D>{
 };
 
 template <class K, class D>
-bool SLRUMap<K,D>::Put(K key , D data, K& ukey, D& udata, bool same){
+bool SLRUMap<K,D>::Put(const K& key , const D& data, K& ukey, D& udata, bool same){
 	D ldata;
 	if( Get(key, ldata) ){//key exists, it should be now in protect segment, the segments should have been renewed
 		return protect.Put(key, data, ukey, udata, same);//always false, no kv poped
@@ -33,7 +33,7 @@ bool SLRUMap<K,D>::Put(K key , D data, K& ukey, D& udata, bool same){
 }
 
 template <class K, class D>
-bool SLRUMap<K,D>::Get(K key, D& data){
+bool SLRUMap<K,D>::Get(const K& key, D& data){
 	K ukey, lkey;
 	D udata, ldata;
 	if( probation.Get(key, data) ){//key exists in probation
@@ -49,7 +49,7 @@ bool SLRUMap<K,D>::Get(K key, D& data){
 }
 
 template <class K, class D>
-bool SLRUMap<K,D>::Delete(K key){
+bool SLRUMap<K,D>::Delete(const K& key){
 	if( protect.Delete(key) || probation.Delete(key) ){//may need detach & attach nodes.
 		return true;
 	}
