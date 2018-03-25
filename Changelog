@@ -1,5 +1,5 @@
 HLKVDS 1.2.0 (2018-02-08)
-1. Support multi-tiers management, build data store on a hetoerogeneous media
+1. Support multi-tiers management, build data store on a heterogeneous media
 storage device.
 2. Add new flush strategy which latency friendly, write data to device
 immediately when low queue depth. 
